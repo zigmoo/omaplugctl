@@ -127,7 +127,7 @@ Item {
     function position(edge: string): void { root.moveBar(edge) }
     function sort(order: string): void { root.invoke("sort", order) }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })}).map(function(p) { return p.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
   }
   Process {

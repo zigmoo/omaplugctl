@@ -182,7 +182,8 @@ class ReviewerTests(unittest.TestCase):
                  patch.object(reviews, 'command', side_effect=command), patch.object(reviews, 'compose', return_value=directory / 'report.md'), \
                  patch.object(reviews.subprocess, 'run', side_effect=dispatch), patch.object(updates, 'source', return_value=source), \
                  patch.object(updates, 'compare_source', return_value={'status': 'available'}):
-                self.assertTrue(reviews.run_review({'id': 'example.widget'}, source, {}))
+                with patch.object(reviews.github_reviews, 'publish', return_value='https://github.com/owner/repo/commit/' + 'b' * 40 + '#commitcomment-1'):
+                    self.assertTrue(reviews.run_review({'id': 'example.widget'}, source, {}))
             review_index = next(i for i, argv in enumerate(events) if argv[0] == 'agent_tool')
             self.assertTrue(any(argv[:2] == ['task_tool', 'append-note'] for argv in events[:review_index]))
             argv = events[review_index]
@@ -230,7 +231,7 @@ class ReviewerTests(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, 'without recording'):
                     reviews.run_review({'id': 'example.widget'}, {'head': 'a' * 40, 'dirty': False}, {})
             self.assertEqual(reviews.statuses()['example.widget']['status'], 'failed')
-            self.assertNotIn('artifact', reviews.statuses()['example.widget'])
+            self.assertFalse(reviews.statuses()['example.widget'].get('artifact'))
 
     def test_agent_review_failure_never_reaches_installer(self):
         with patch.object(controller, 'update_target', return_value=({'id': 'example.widget'}, {})), \
@@ -239,10 +240,10 @@ class ReviewerTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'review failed'): controller.review_update('example.widget')
             install.assert_not_called()
 
-    def test_user_can_read_report_and_decline_updater(self):
+    def test_completed_background_review_never_prompts_or_starts_updater(self):
         with patch.object(controller, 'update_target', return_value=({'id': 'example.widget'}, {})), \
              patch.object(controller, 'run', return_value='[{"id":"example.widget"}]'), \
-             patch.object(reviews, 'run_review', return_value=True), patch('builtins.input', return_value='n'), \
+             patch.object(reviews, 'run_review', return_value=True), patch('builtins.input', side_effect=AssertionError('Background reviews must never prompt')), \
              patch.object(controller.subprocess, 'run') as install:
             self.assertEqual(controller.review_update('example.widget'), 0)
             install.assert_not_called()

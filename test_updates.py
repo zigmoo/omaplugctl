@@ -147,11 +147,14 @@ class UpdateTests(unittest.TestCase):
         directory = self.base / 'local'; directory.mkdir()
         self.assertEqual(updates.cached_status(self.plugin, {'sourceDir': str(directory)}, {}), {'status': 'local', 'canUpdate': False})
 
-    def test_launch_opens_review_without_auto_confirmation(self):
+    def test_launch_runs_detached_without_terminal_or_auto_confirmation(self):
         with patch.object(controller, 'update_target', return_value=(self.plugin, {})), patch.object(controller.reviews, 'reviewer', return_value={'label': 'Registered reviewer'}), patch.object(controller, 'inventory', return_value=[self.plugin]), patch.object(controller.subprocess, 'Popen') as launch:
             controller.launch_update('example.widget')
             argv = launch.call_args.args[0]
-            self.assertEqual(argv[0], 'omarchy-launch-tui')
+            self.assertNotIn('omarchy-launch-tui', argv)
+            self.assertEqual(argv[1], '-u')
+            self.assertTrue(launch.call_args.kwargs['start_new_session'])
+            self.assertEqual(launch.call_args.kwargs['stdin'], subprocess.DEVNULL)
             self.assertEqual(argv[-2:], ['review-update', 'example.widget'])
             self.assertNotIn('--yes', argv)
 

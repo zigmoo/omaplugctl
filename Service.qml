@@ -54,7 +54,7 @@ Item {
     return lines.join("\n")
   }
   function reviewUpdate(plugin) {
-    if (plugin.review && plugin.review.status === "working") { failed = false; message = plugin.review.progress || strings.t("reviews.working"); return }
+    if (plugin.review && ["queued", "working"].indexOf(plugin.review.status) !== -1) { failed = false; message = plugin.review.progress || strings.t("reviews.working"); return }
     if (plugin.update && (plugin.update.status === "available" || plugin.update.status === "diverged")) invoke("update", plugin.id)
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }

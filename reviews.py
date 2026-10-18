@@ -13,9 +13,11 @@ import tempfile
 import datetime
 import fcntl
 import urllib.parse
+import contextlib
 
 import updates
 import native_reviewers
+import github_reviews
 
 SETTING = 'defaultPreferredReviewer'
 LIMIT = 200_000
@@ -218,7 +220,11 @@ def save_status(pid, **fields):
 
 def open_report(pid):
     value = statuses().get(pid, {})
-    if value.get('artifact'):
+    if value.get('githubUrl'):
+        if not re.fullmatch(r'https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/commit/[a-f0-9]{40,64}#commitcomment-\d+', value['githubUrl']):
+            raise RuntimeError('The saved GitHub review URL is invalid.')
+        command(['xdg-open', value['githubUrl']])
+    elif value.get('artifact'):
         url = command(['url_tool', '--plain', 'knowledge', value['artifact']])
         if not url.startswith('https://'):
             raise RuntimeError('DIL did not return an HTTPS review URL.')
@@ -374,15 +380,54 @@ def terminal_text(value):
     return ''.join(c for c in value if c in '\n\t' or (c.isprintable() and c != '\x7f'))
 
 
-def run_review(plugin, info, metadata, task=None):
-    lock = status_path(plugin['id']).with_suffix('.lock')
+@contextlib.contextmanager
+def review_lock(pid, suffix='.lock'):
+    lock = status_path(pid).with_suffix(suffix)
     lock.parent.mkdir(parents=True, exist_ok=True)
     with lock.open('a') as file:
         try:
             fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise RuntimeError('A review of this plugin is already running. Its progress and report will appear in OmaPlugCtl.')
+        yield
+
+
+def run_review(plugin, info, metadata, task=None):
+    with review_lock(plugin['id']):
         return _run_review(plugin, info, metadata, task)
+
+
+def publish_saved(pid, *, locked=False):
+    if not locked:
+        with review_lock(pid):
+            return publish_saved(pid, locked=True)
+    value = statuses().get(pid, {})
+    job_path = pathlib.Path(value.get('publicationJob', ''))
+    job = json.loads(job_path.read_text())
+    report = (job_path.parent / 'review-report.txt').read_text()
+    if hashlib.sha256(report.encode()).hexdigest() != job['reportSha256']:
+        raise RuntimeError('Saved publication evidence changed; the report was not published.')
+    save_status(pid, status='working', progress='Publishing review to GitHub', error='')
+    try:
+        url = github_reviews.publish(report, job['repository'], job['upstream'], command)
+    except Exception as exc:
+        save_status(pid, status='publish_failed', progress='Review ready · GitHub publication failed', error=str(exc)[:1200])
+        if value.get('task'):
+            note(value['task'], f'GitHub publication failed; complete findings retained for publication retry: {exc}')
+        return False
+    save_status(pid, status='complete', progress='Review ready on GitHub', githubUrl=url, error='')
+    if value.get('task'):
+        try:
+            note(value['task'], f'GitHub review published and read back: {url}. No update installed.')
+        except Exception as exc:
+            print(f'GitHub review delivered; DIL note needs retry: {terminal_text(str(exc))}', flush=True)
+    if not value.get('githubUrl'):
+        # Publication is complete even when the desktop browser cannot be launched.
+        try:
+            command(['xdg-open', url])
+        except (RuntimeError, OSError, subprocess.SubprocessError):
+            pass
+    return True
 
 
 def _run_review(plugin, info, metadata, task=None):
@@ -390,7 +435,8 @@ def _run_review(plugin, info, metadata, task=None):
     directory = scratch(route)
     task_ready = False
     try:
-        save_status(plugin['id'], status='working', progress='Preparing review', error='')
+        save_status(plugin['id'], status='working', progress='Preparing background review', error='',
+                    githubUrl='', artifact='', localReport='', publicationJob='', task='', workerPid=os.getpid())
         if route['dil']:
             if task:
                 if not re.fullmatch(r'DIL-\d+', task):
@@ -437,6 +483,7 @@ def _run_review(plugin, info, metadata, task=None):
                   'Finish with a recommendation: proceed to human review, hold, or escalate. '
                   'A clean review is advisory and does not authorize installation. '
                   'Return the actual report body as your final response, not a completion message or a pointer to a different report. '
+                  'Findings will be published to the source GitHub commit. Exclude credentials, personal data, local filesystem paths and internal DIL URLs from the report. '
                   'The caller also records it on the DIL task; do not mark the task done.')
         source_instruction = (' Source-file URL template: ' + provenance['files'] + '{path}#L{line}. '
                               'Replace placeholders with actual source paths and verified source line numbers; never link the template itself.') if provenance.get('files') else ''
@@ -527,6 +574,10 @@ def _run_review(plugin, info, metadata, task=None):
                          'Binary changes are represented by Git metadata; binary payloads were not inspected.')
         final_report = (heading + '\n' + coverage_text + '\n\n' + summary + '\n\nOriginal part findings\n\n' +
                         '\n\n'.join(f'Part {i}\n{r}' for i, r in enumerate(reports, 1)))
+        final_report = ('Automated advisory review by ' + route['label'] + '. No plugin code executed or installed.\n\n' + final_report)
+        # Do not publish local home paths or accidental GitHub mention notifications.
+        final_report = final_report.replace(str(pathlib.Path.home()), '<local-home>')
+        final_report = re.sub(r'(?<![\w/])@(?=[A-Za-z0-9])', '@\u200b', final_report)
         (directory / 'review-report.txt').write_text(final_report)
         print('\n' + terminal_text(coverage_text + '\n\n' + summary), flush=True)
         if route['dil']:
@@ -535,18 +586,18 @@ def _run_review(plugin, info, metadata, task=None):
             note(task, f'Review delivered. Findings composition_ref: {artifact}. '
                  f'{coverage_text} No update installed by the reviewer. Awaiting operator disposition; review is advisory.')
             print(command(['url_tool', 'knowledge', str(artifact)]), flush=True)
-            save_status(plugin['id'], status='complete', progress='Review ready', artifact=str(artifact), error='')
+            save_status(plugin['id'], artifact=str(artifact), error='')
         else:
             print(f'Full review report: {directory / "review-report.txt"}', flush=True)
-            save_status(plugin['id'], status='complete', progress='Review ready', localReport=str(directory / 'review-report.txt'), error='')
-        # Local changes/divergence can be reviewed but never installed by this flow.
-        current = updates.source(plugin, metadata)
-        unchanged = current and current['head'] == info['head'] and current['identity'] == info['identity']
-        can_install = bool(unchanged and not current['dirty'] and
-                           updates.compare_source(current, remote, metadata)['status'] == 'available')
-        if not can_install:
-            print('Installation is blocked by local changes, divergence, or a changed source. Resolve these before updating.')
-        return can_install
+            save_status(plugin['id'], localReport=str(directory / 'review-report.txt'), error='')
+        if urllib.parse.urlsplit(provenance.get('repository', '')).hostname == 'github.com':
+            job = directory / 'publication.json'
+            job.write_text(json.dumps({'repository': provenance['repository'], 'upstream': remote,
+                                       'reportSha256': hashlib.sha256(final_report.encode()).hexdigest()}))
+            save_status(plugin['id'], publicationJob=str(job))
+            return publish_saved(plugin['id'], locked=True)
+        save_status(plugin['id'], status='complete', progress='Review ready locally · source is not on GitHub', error='')
+        return True
     except Exception as exc:
         save_status(plugin['id'], status='failed', progress='Review needs attention', error=str(exc)[:1200])
         if task_ready:

@@ -200,54 +200,37 @@ def launch_update(pid):
     if source is None:
         raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
     route = reviews.reviewer()
-    subprocess.Popen(['omarchy-launch-tui', 'python3', str(pathlib.Path(__file__).resolve()), 'review-update', pid],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     start_new_session=True)
-    return {'plugins': inventory(), 'message': f'Agent review opened in a terminal with {route["label"]}. Findings will be recorded before any installation.'}
+    return start_background(pid, 'review-update', f'Background review started with {route["label"]}. The outcome will open on GitHub.')
+
+
+def start_background(pid, action, message):
+    with reviews.review_lock(pid, '.launch.lock'):
+        status = reviews.statuses().get(pid, {})
+        if status.get('status') == 'queued':
+            changed = datetime.datetime.fromisoformat(status['changedAt'])
+            if (datetime.datetime.now(datetime.timezone.utc) - changed).total_seconds() < 10:
+                return {'plugins': inventory(), 'message': 'Background review is starting.'}
+        log = reviews.status_path(pid).with_suffix('.log')
+        with reviews.review_lock(pid):
+            reviews.save_status(pid, status='queued', progress='Starting background review' if action == 'review-update' else 'Retrying GitHub publication', error='')
+        try:
+            with log.open('w') as output:
+                subprocess.Popen([sys.executable, '-u', str(pathlib.Path(__file__).resolve()), action, pid],
+                                 stdin=subprocess.DEVNULL, stdout=output, stderr=subprocess.STDOUT,
+                                 start_new_session=True)
+        except Exception as exc:
+            reviews.save_status(pid, status='failed', progress='Could not start background review', error=str(exc)[:1200])
+            raise
+    return {'plugins': inventory(), 'message': message}
+
 
 def review_update(pid):
     plugin, source = update_target(pid, reviewing=True)
     if source is None:
         raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
     metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
-    if not reviews.run_review(plugin, source, metadata):
-        return 0
-    if input('\nOpen the supported updater to inspect its diff and confirm installation? [y/N] ').strip().lower() != 'y':
-        return 0
-    # Revalidate after the agent returns, before handing control to the updater.
-    plugin, source = update_target(pid)
-    if plugin['firstParty'] and not plugin.get('clonedFrom'):
-        print('This plugin ships with Omarchy. The Omarchy updater updates the system and its built-in plugins.')
-        if input('Open the Omarchy system updater? [y/N] ').strip().lower() != 'y':
-            return 0
-        command = ['omarchy-update']
-    else:
-        # The updater fetches again and presents its own final diff, so the user
-        # also reviews any upstream changes published after the agent's snapshot.
-        command = ['omarchy', 'plugin', 'update', pid]
-    code = subprocess.run(command).returncode
-    cache = updates.load_cache()
-    cache.pop(pid, None)
-    if code == 0:
-        try:
-            metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
-            refreshed = updates.source(plugin, metadata)
-            if refreshed:
-                cache[pid] = updates.compare_source(refreshed, updates.git(refreshed['root'], 'rev-parse', 'FETCH_HEAD'), metadata)
-        except (RuntimeError, OSError, ValueError, StopIteration, subprocess.SubprocessError):
-            pass
-    updates.save_cache(cache)
-    # Plugin updates rescan the shell, recreating this manager. This terminal
-    # process survives that rescan and brings the menu back for the user.
-    for attempt in range(40):
-        try:
-            run(['omarchy-shell', SELF, 'show'])
-            state = json.loads(run(['omarchy-shell', SELF, 'status']))
-            if state.get('open') and state.get('anchored'):
-                break
-        except (RuntimeError, OSError, subprocess.SubprocessError):
-            time.sleep(0.2)
-    return code
+    return 0 if reviews.run_review(plugin, source, metadata) else 1
+
 
 def about_url(p):
     directory = pathlib.Path.home()/'.config/omarchy/plugins'/p['id']
@@ -317,7 +300,7 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'review-update', 'review-status', 'view-review', 'reviewer-config', 'set-reviewer', 'set-reviewer-source', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'review-update', 'publish-review', 'retry-publication', 'review-status', 'view-review', 'reviewer-config', 'set-reviewer', 'set-reviewer-source', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
@@ -331,14 +314,13 @@ def main():
         if a.action == 'review-status':
             print(json.dumps({'ok': True, 'reviews': reviews.statuses()}))
             return 0
-        if a.action == 'review-update':
+        if a.action in ('review-update', 'publish-review'):
             try:
-                return review_update(a.id)
+                return review_update(a.id) if a.action == 'review-update' else 0 if reviews.publish_saved(a.id) else 1
             except Exception as e:
+                reviews.save_status(a.id, status='failed', progress='Review needs attention', error=str(e)[:1200])
                 print(reviews.terminal_text(str(e)))
                 return 1
-            finally:
-                if sys.stdin.isatty(): input('\nPress Enter to close the review terminal…')
         if a.action == 'position':
             data = set_bar_position(a.edge)
         else:
@@ -346,6 +328,9 @@ def main():
             elif a.action == 'sort': data = set_sort(a.id)
             elif a.action == 'check-updates': data = check_updates()
             elif a.action == 'update': data = launch_update(a.id)
+            elif a.action == 'retry-publication':
+                update_target(a.id, reviewing=True)
+                data = start_background(a.id, 'publish-review', 'Publishing saved findings to GitHub; the agent review will not repeat.')
             else: data = execute(a.action, a.id, a.section, a.source, a.index, a.confirmed)
             data['barPosition'] = bar_position()
         data['sortOrder'] = configured_sort()

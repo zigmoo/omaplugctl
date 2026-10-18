@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "moo.omaplugctl",
+  "name": "OmaPlugCtl",
+  "version": "0.9.0",
+  "author": "Jason Ziegler",
+  "description": "Manage bar plugins without modifying Omarchy source.",
+  "kinds": [
+    "bar-widget",
+    "service"
+  ],
+  "entryPoints": {
+    "barWidget": "Widget.qml",
+    "service": "Service.qml"
+  },
+  "barWidget": {
+    "displayName": "OmaPlugCtl",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {"sortOrder": "name"}
+  }
+}

@@ -13,8 +13,8 @@ def configured_sort():
     for entries in config.get('bar', {}).get('layout', {}).values():
         for entry in entries if isinstance(entries, list) else []:
             if isinstance(entry, dict) and entry.get('id') == SELF:
-                return entry.get('sortOrder') if entry.get('sortOrder') in SORT_ORDERS else 'name'
-    return 'name'
+                return entry.get('sortOrder') if entry.get('sortOrder') in SORT_ORDERS else 'screen'
+    return 'screen'
 
 def sort_plugins(plugins, order):
     def name(plugin): return str(plugin.get('name') or plugin['id']).casefold()

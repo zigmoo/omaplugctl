@@ -22,7 +22,7 @@ Item {
   property string pendingName: ""
   property string pendingAction: ""
   property string barPosition: ""
-  property string sortOrder: "name"
+  property string sortOrder: "screen"
   readonly property bool busy: controller.running
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
@@ -142,7 +142,7 @@ Item {
           var oldY = root.pendingAction === "sort" ? 0 : pluginList.contentY
           root.plugins = result.plugins
           root.barPosition = result.barPosition
-          root.sortOrder = result.sortOrder || "name"
+          root.sortOrder = result.sortOrder || "screen"
           Qt.callLater(function() { pluginList.contentY = Math.min(oldY, Math.max(0, pluginList.contentHeight - pluginList.height)) })
         }
       } catch (e) {

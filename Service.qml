@@ -237,13 +237,13 @@ Item {
             id: sortPicker
             objectName: "pluginSortPicker"
             width: parent.width
-            model: [strings.t("sort.name"), strings.t("sort.screen"), strings.t("sort.updates")]
-            currentIndex: ["name", "screen", "updates"].indexOf(root.sortOrder)
+            model: [strings.t("sort.screen"), strings.t("sort.name"), strings.t("sort.updates")]
+            currentIndex: ["screen", "name", "updates"].indexOf(root.sortOrder)
             fontFamily: root.themeFont
             enabled: !root.busy && root.confirmingId === ""
             onActivated: function(index) {
-              var choice = ["name", "screen", "updates"][index]
-              currentIndex = Qt.binding(function() { return ["name", "screen", "updates"].indexOf(root.sortOrder) })
+              var choice = ["screen", "name", "updates"][index]
+              currentIndex = Qt.binding(function() { return ["screen", "name", "updates"].indexOf(root.sortOrder) })
               root.invoke("sort", choice)
             }
           }

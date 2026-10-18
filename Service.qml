@@ -53,7 +53,7 @@ Item {
     return lines.join("\n")
   }
   function reviewUpdate(plugin) {
-    if (plugin.update && plugin.update.canUpdate) invoke("update", plugin.id)
+    if (plugin.update && (plugin.update.status === "available" || plugin.update.status === "diverged")) invoke("update", plugin.id)
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }
   function text(key) { return strings.t(key) }

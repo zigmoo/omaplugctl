@@ -9,3 +9,4 @@ Read `$HOME/READ_THIS_DIL_FIRST.md` and follow the DIL bootstrap and local guida
 - Keep the menu and controller in `Service.qml`; orientation changes recreate `Widget.qml`.
 - Plugin and repository text must render as plain text. Source checks never install code; installation requires the supported updater's review/confirmation flow. Preserve local changes.
 - Runtime cache belongs under the user's XDG state directory; never commit it. Historical `archive/` artifacts and Python caches are ignored.
+- Resolve `defaultPreferredReviewer` through `settings_tool` and the dispatch/harness registry owners. Never hard-code a reviewer model or bypass a disabled binding. DIL reviews create a task and durable evidence; agent findings never authorize installation. See `reviews.py` and README for the standalone fallback and scope limits.

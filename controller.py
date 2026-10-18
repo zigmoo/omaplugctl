@@ -2,6 +2,7 @@
 """OmaPlugCtl: argv-only commands with datasource readback."""
 import argparse, datetime, json, os, pathlib, re, subprocess, sys, time, urllib.request
 import updates
+import reviews
 SELF = 'moo.omaplugctl'
 SECTIONS = ('left', 'centerBegin', 'center', 'centerEnd', 'right', 'tray')
 EDGES = ('top', 'bottom', 'left', 'right')
@@ -176,7 +177,7 @@ def check_updates():
     failed = sum(p['update']['status'] == 'error' for p in plugins)
     return {'plugins': plugins, 'message': f'{available} updates available. {failed} source checks failed.'}
 
-def update_target(pid):
+def update_target(pid, reviewing=False):
     if not isinstance(pid, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', pid) or '..' in pid:
         raise ValueError('Invalid plugin id.')
     plugin = next((p for p in inventory() if p['id'] == pid), None)
@@ -188,18 +189,30 @@ def update_target(pid):
         if plugin['firstParty'] and not plugin.get('clonedFrom'):
             return plugin, None
         raise RuntimeError('No independent Git update repository is configured for this plugin.')
-    if source['dirty']:
+    if source['dirty'] and not reviewing:
         raise RuntimeError('This source has local changes. Review them before updating; no files were changed.')
     return plugin, source
 
 def launch_update(pid):
-    update_target(pid)
+    plugin, source = update_target(pid, reviewing=True)
+    if source is None:
+        raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
+    route = reviews.reviewer()
     subprocess.Popen(['omarchy-launch-tui', 'python3', str(pathlib.Path(__file__).resolve()), 'review-update', pid],
                      stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                      start_new_session=True)
-    return {'plugins': inventory(), 'message': 'Update review opened in a terminal. Review the changes and confirm there.'}
+    return {'plugins': inventory(), 'message': f'Agent review opened in a terminal with {route["label"]}. Findings will be recorded before any installation.'}
 
 def review_update(pid):
+    plugin, source = update_target(pid, reviewing=True)
+    if source is None:
+        raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
+    metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
+    if not reviews.run_review(plugin, source, metadata):
+        return 0
+    if input('\nOpen the supported updater to inspect its diff and confirm installation? [y/N] ').strip().lower() != 'y':
+        return 0
+    # Revalidate after the agent returns, before handing control to the updater.
     plugin, source = update_target(pid)
     if plugin['firstParty'] and not plugin.get('clonedFrom'):
         print('This plugin ships with Omarchy. The Omarchy updater updates the system and its built-in plugins.')
@@ -207,8 +220,8 @@ def review_update(pid):
             return 0
         command = ['omarchy-update']
     else:
-        # A local checkout can be ahead or diverged; the supported updater
-        # presents its diff and only applies a fast-forward after confirmation.
+        # The updater fetches again and presents its own final diff, so the user
+        # also reviews any upstream changes published after the agent's snapshot.
         command = ['omarchy', 'plugin', 'update', pid]
     code = subprocess.run(command).returncode
     cache = updates.load_cache()
@@ -307,7 +320,13 @@ def main():
     a = parser.parse_args()
     try:
         if a.action == 'review-update':
-            return review_update(a.id)
+            try:
+                return review_update(a.id)
+            except Exception as e:
+                print(reviews.terminal_text(str(e)))
+                return 1
+            finally:
+                if sys.stdin.isatty(): input('\nPress Enter to close the review terminal…')
         if a.action == 'position':
             data = set_bar_position(a.edge)
         else:

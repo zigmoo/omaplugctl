@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import controller
 import updates
+import reviews
 
 
 class UpdateTests(unittest.TestCase):
@@ -65,6 +66,23 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(result['notes'], ['Update source'])
         self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), old_head)
         self.assertEqual((self.installed / 'Widget.qml').read_text(), 'initial')
+
+    def test_review_snapshot_pins_both_commits_without_installing(self):
+        self.advance_remote()
+        source = updates.source(self.plugin, self.metadata)
+        body, remote = reviews.snapshot(self.plugin, source, self.metadata)
+        self.assertIn(source['head'], body)
+        self.assertIn(remote, body)
+        self.assertIn('+new remote version', body)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), source['head'])
+        self.assertEqual((self.installed / 'Widget.qml').read_text(), 'initial')
+
+    def test_oversized_review_refuses_incomplete_agent_approval(self):
+        self.advance_remote()
+        source = updates.source(self.plugin, self.metadata)
+        with patch.object(reviews, 'LIMIT', 5):
+            with self.assertRaisesRegex(RuntimeError, 'bounded review size'):
+                reviews.snapshot(self.plugin, source, self.metadata)
 
     def test_current_repository_and_cache(self):
         self.assertEqual(self.check()['status'], 'current')
@@ -128,7 +146,7 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(updates.cached_status(self.plugin, {'sourceDir': str(directory)}, {}), {'status': 'local', 'canUpdate': False})
 
     def test_launch_opens_review_without_auto_confirmation(self):
-        with patch.object(controller, 'update_target', return_value=(self.plugin, {})), patch.object(controller, 'inventory', return_value=[self.plugin]), patch.object(controller.subprocess, 'Popen') as launch:
+        with patch.object(controller, 'update_target', return_value=(self.plugin, {})), patch.object(controller.reviews, 'reviewer', return_value={'label': 'Registered reviewer'}), patch.object(controller, 'inventory', return_value=[self.plugin]), patch.object(controller.subprocess, 'Popen') as launch:
             controller.launch_update('example.widget')
             argv = launch.call_args.args[0]
             self.assertEqual(argv[0], 'omarchy-launch-tui')

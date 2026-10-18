@@ -99,6 +99,19 @@ Item {
           elide: Text.ElideRight
         }
         Text {
+          objectName: "pluginOperationStatus"
+          width: parent.width
+          visible: !!root.plugin.operation && !!root.plugin.operation.message
+          text: root.plugin.operation ? root.plugin.operation.message || "" : ""
+          textFormat: Text.PlainText
+          color: root.plugin.operation && root.plugin.operation.status === "error" ? Commons.Color.urgent : Commons.Color.accent
+          font.family: root.host.themeFont
+          font.pixelSize: Style.font.caption
+          wrapMode: Text.WordWrap
+          maximumLineCount: 3
+          elide: Text.ElideRight
+        }
+        Text {
           width: parent.width
           objectName: "pluginUpdateStatus"
           visible: !!root.plugin.update && (["current", "available"].indexOf(root.plugin.update.status) === -1 || !!root.plugin.update.dirty)
@@ -122,17 +135,7 @@ Item {
           color: Qt.darker(root.ink, 1.4)
           elide: Text.ElideRight
         }
-        Text {
-          objectName: "pluginReviewProgress"
-          width: parent.width
-          visible: !!root.plugin.review && ["working", "failed"].indexOf(root.plugin.review.status) !== -1
-          text: root.plugin.review ? root.plugin.review.progress || "" : ""
-          textFormat: Text.PlainText
-          color: root.plugin.review && root.plugin.review.status === "failed" ? Commons.Color.urgent : Commons.Color.accent
-          font.family: root.host.themeFont
-          font.pixelSize: Style.font.caption
-          elide: Text.ElideRight
-        }
+
       }
       Row {
         id: actions
@@ -140,23 +143,12 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(3)
         HoverHandler { id: actionHover }
-        Ui.PanelActionButton {
-          objectName: "pluginReviewButton"
-          visible: !!root.plugin.review && (!!root.plugin.review.artifact || !!root.plugin.review.localReport)
-          iconText: "󰈙"
-          tooltipText: root.host.text("reviews.view")
-          fontFamily: root.host.themeFont
-          foreground: Commons.Color.accent
-          focusable: true
-          enabled: root.available
-          onClicked: root.host.invoke("view-review", root.plugin.id)
-        }
         UpdateIndicator {
-          visible: !!root.plugin.update && ["available", "diverged"].indexOf(root.plugin.update.status) !== -1
+          visible: !!root.plugin.update && root.plugin.update.kind !== "omarchy" && ["available", "diverged"].indexOf(root.plugin.update.status) !== -1
           plugin: root.plugin
           host: root.host
-          enabled: root.available
-          onClicked: root.host.reviewUpdate(root.plugin)
+          enabled: root.available && (!root.plugin.operation || root.plugin.operation.status !== "working")
+          onClicked: root.host.updatePlugin(root.plugin)
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
@@ -222,15 +214,6 @@ Item {
             }
           }
         }
-      }
-      Ui.Button {
-        text: root.host.updateActionLabel(root.plugin)
-        visible: root.plugin.firstParty && !root.plugin.clonedFrom && root.plugin.update && root.plugin.update.status === "system"
-        fontFamily: root.host.themeFont
-        foreground: root.ink
-        focusable: true
-        enabled: root.available
-        onClicked: root.host.invoke("update", root.plugin.id)
       }
       Ui.Button {
         text: "Uninstall…"

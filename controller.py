@@ -1,8 +1,7 @@
 #!/usr/bin/python3
 """OmaPlugCtl: argv-only commands with datasource readback."""
-import argparse, datetime, json, os, pathlib, re, subprocess, sys, time, urllib.request
+import argparse, datetime, json, os, pathlib, re, subprocess, sys, time, urllib.request, fcntl
 import updates
-import reviews
 SELF = 'moo.omaplugctl'
 SECTIONS = ('left', 'centerBegin', 'center', 'centerEnd', 'right', 'tray')
 EDGES = ('top', 'bottom', 'left', 'right')
@@ -146,7 +145,7 @@ def inventory():
     catalog = json.loads(run(['omarchy-plugin-catalog']))
     metadata = {p['id']: p for p in catalog if isinstance(p, dict) and isinstance(p.get('id'), str)}
     update_cache = updates.load_cache()
-    review_cache = reviews.statuses()
+    operations = updates.operations()
     config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
     layout = config.get('bar', {}).get('layout', {})
     result = []
@@ -166,7 +165,7 @@ def inventory():
         p['canDisable'] = not p['isSelf'] and p.get('canDisable', True)
         p['canRemove'] = not p['isSelf'] and not p['firstParty'] and (pathlib.Path.home()/'.config/omarchy/plugins'/p['id']).exists()
         p['update'] = updates.cached_status(p, metadata.get(p['id'], {}), update_cache)
-        p['review'] = review_cache.get(p['id'], {})
+        p['operation'] = operations.get(p['id'], {})
         result.append(p)
     return result
 
@@ -179,7 +178,7 @@ def check_updates():
     failed = sum(p['update']['status'] == 'error' for p in plugins)
     return {'plugins': plugins, 'message': f'{available} updates available. {failed} source checks failed.'}
 
-def update_target(pid, reviewing=False):
+def update_target(pid):
     if not isinstance(pid, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]*', pid) or '..' in pid:
         raise ValueError('Invalid plugin id.')
     plugin = next((p for p in inventory() if p['id'] == pid), None)
@@ -191,63 +190,50 @@ def update_target(pid, reviewing=False):
         if plugin['firstParty'] and not plugin.get('clonedFrom'):
             return plugin, None
         raise RuntimeError('No independent Git update repository is configured for this plugin.')
-    if source['dirty'] and not reviewing:
+    if source['dirty']:
         raise RuntimeError('This source has local changes. Review them before updating; no files were changed.')
     return plugin, source
 
 def launch_update(pid):
-    plugin, source = update_target(pid, reviewing=True)
-    if source is None:
-        raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
-    route = reviews.reviewer()
-    subprocess.Popen(['omarchy-launch-tui', 'python3', str(pathlib.Path(__file__).resolve()), 'review-update', pid],
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                     start_new_session=True)
-    return {'plugins': inventory(), 'message': f'Agent review opened in a terminal with {route["label"]}. Findings will be recorded before any installation.'}
-
-def review_update(pid):
-    plugin, source = update_target(pid, reviewing=True)
-    if source is None:
-        raise RuntimeError('Agent review needs a Git source checkout for this plugin.')
-    metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
-    if not reviews.run_review(plugin, source, metadata):
-        return 0
-    if input('\nOpen the supported updater to inspect its diff and confirm installation? [y/N] ').strip().lower() != 'y':
-        return 0
-    # Revalidate after the agent returns, before handing control to the updater.
     plugin, source = update_target(pid)
-    if plugin['firstParty'] and not plugin.get('clonedFrom'):
-        print('This plugin ships with Omarchy. The Omarchy updater updates the system and its built-in plugins.')
-        if input('Open the Omarchy system updater? [y/N] ').strip().lower() != 'y':
-            return 0
-        command = ['omarchy-update']
-    else:
-        # The updater fetches again and presents its own final diff, so the user
-        # also reviews any upstream changes published after the agent's snapshot.
-        command = ['omarchy', 'plugin', 'update', pid]
-    code = subprocess.run(command).returncode
-    cache = updates.load_cache()
-    cache.pop(pid, None)
-    if code == 0:
+    if source is None or source['kind'] != 'plugin':
+        raise RuntimeError('Built-in plugins are updated with Omarchy.')
+    if not source['tracking']:
+        raise RuntimeError('Choose a branch tracking origin before updating this plugin.')
+    log = updates.cache_path().parent / 'operations' / 'launcher.lock'
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open('a') as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        previous = updates.operations().get(pid, {})
+        if previous.get('status') == 'working':
+            changed = datetime.datetime.fromisoformat(previous['changedAt'])
+            if (datetime.datetime.now(datetime.timezone.utc) - changed).total_seconds() < 120:
+                return {'plugins': inventory(), 'message': 'This plugin is already updating.'}
+        updates.save_operation(pid, status='working', message='Updating plugin…')
         try:
-            metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
-            refreshed = updates.source(plugin, metadata)
-            if refreshed:
-                cache[pid] = updates.compare_source(refreshed, updates.git(refreshed['root'], 'rev-parse', 'FETCH_HEAD'), metadata)
-        except (RuntimeError, OSError, ValueError, StopIteration, subprocess.SubprocessError):
-            pass
-    updates.save_cache(cache)
-    # Plugin updates rescan the shell, recreating this manager. This terminal
-    # process survives that rescan and brings the menu back for the user.
-    for attempt in range(40):
+            subprocess.Popen([sys.executable, str(pathlib.Path(__file__).resolve()), 'finish-update', pid],
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                             start_new_session=True)
+        except Exception as exc:
+            updates.save_operation(pid, status='error', message=str(exc)[:1200])
+            raise
+    return {'plugins': inventory(), 'message': 'Updating plugin…'}
+
+
+def apply_update(pid):
+    plugin, source = update_target(pid)
+    metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
+    result = updates.apply_update(plugin, metadata)
+    # User plugin files are watched by Omarchy; a rescan also picks up manifest
+    # changes. Failure to rescan does not undo a successfully verified Git update.
+    message = 'Updated to ' + result['head'][:8] + '.' if result['changed'] else 'Already up to date.'
+    updates.save_operation(pid, status='done', message=message)
+    if result['changed']:
         try:
-            run(['omarchy-shell', SELF, 'show'])
-            state = json.loads(run(['omarchy-shell', SELF, 'status']))
-            if state.get('open') and state.get('anchored'):
-                break
+            run(['omarchy-shell', 'shell', 'rescanPlugins'])
         except (RuntimeError, OSError, subprocess.SubprocessError):
-            time.sleep(0.2)
-    return code
+            message += ' Refresh the shell to reload the plugin.'
+    return {'plugins': inventory(), 'message': message}
 
 def about_url(p):
     directory = pathlib.Path.home()/'.config/omarchy/plugins'/p['id']
@@ -281,9 +267,6 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
         url = about_url(p)
         run(['xdg-open', url])
         return {'plugins': before, 'message': 'Opened source page.'}
-    if action == 'view-review':
-        reviews.open_report(pid)
-        return {'plugins': before, 'message': 'Opened the latest review report.'}
     if action == 'remove':
         if not p['canRemove'] or not confirmed: raise ValueError('Uninstall requires confirmation and an installed third-party plugin.')
         run(['omarchy-plugin-remove', pid, '--yes'])
@@ -317,28 +300,23 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'review-update', 'review-status', 'view-review', 'reviewer-config', 'set-reviewer', 'set-reviewer-source', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
     parser.add_argument('--confirmed', action='store_true')
     a = parser.parse_args()
     try:
-        if a.action in ('reviewer-config', 'set-reviewer', 'set-reviewer-source'):
-            value = reviews.set_source(a.id) if a.action == 'set-reviewer-source' else reviews.set_reviewer(a.id) if a.action == 'set-reviewer' else reviews.reviewer_config()
-            print(json.dumps({'ok': True, 'config': value}))
+        if a.action == 'update-status':
+            print(json.dumps({'ok': True, 'operations': updates.operations()}))
             return 0
-        if a.action == 'review-status':
-            print(json.dumps({'ok': True, 'reviews': reviews.statuses()}))
-            return 0
-        if a.action == 'review-update':
+        if a.action == 'finish-update':
             try:
-                return review_update(a.id)
-            except Exception as e:
-                print(reviews.terminal_text(str(e)))
+                apply_update(a.id)
+                return 0
+            except Exception as exc:
+                updates.save_operation(a.id, status='error', message=str(exc)[:1200])
                 return 1
-            finally:
-                if sys.stdin.isatty(): input('\nPress Enter to close the review terminal…')
         if a.action == 'position':
             data = set_bar_position(a.edge)
         else:

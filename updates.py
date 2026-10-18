@@ -1,4 +1,4 @@
-"""Source checks for the installed plugin version; no automatic installs."""
+"""Source checks and explicit fast-forward updates of running plugin checkouts."""
 import concurrent.futures
 import datetime
 import hashlib
@@ -7,6 +7,7 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import fcntl
 
 
 def git(directory, *args, timeout=10):
@@ -42,12 +43,34 @@ def save_cache(value):
     os.replace(temporary, path)
 
 
+def operations():
+    result = {}
+    for path in (cache_path().parent / 'operations').glob('*.json'):
+        try:
+            if path.stat().st_size <= 8192:
+                value = json.loads(path.read_text())
+                result[value['plugin']] = value
+        except (OSError, ValueError, KeyError, TypeError):
+            pass
+    return result
+
+
+def save_operation(pid, **fields):
+    path = cache_path().parent / 'operations' / (hashlib.sha256(pid.encode()).hexdigest() + '.json')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    value = {**fields, 'plugin': pid, 'changedAt': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, prefix='.update-', delete=False) as file:
+        json.dump(value, file)
+        temporary = file.name
+    os.replace(temporary, path)
+
+
 def source(plugin, metadata):
     directory = pathlib.Path(metadata.get('sourceDir') or '')
     if not metadata.get('sourceDir') or not directory.is_dir():
         return None
     first_party = bool(plugin.get('firstParty')) and not plugin.get('clonedFrom')
-    if not first_party and not (directory / '.git').is_dir():
+    if not first_party and not (directory / '.git').exists():
         return None
     try:
         root = pathlib.Path(git(directory, 'rev-parse', '--show-toplevel')).resolve()
@@ -55,16 +78,21 @@ def source(plugin, metadata):
             return None
         remote = git(root, 'remote', 'get-url', 'origin')
         head = git(root, 'rev-parse', 'HEAD')
+        branch = git(root, 'branch', '--show-current')
         target = 'HEAD'
-        if first_party:
-            branch = git(root, 'branch', '--show-current')
+        tracking = False
+        try:
             target = git(root, 'config', '--get', 'branch.' + branch + '.merge')
             configured_remote = git(root, 'config', '--get', 'branch.' + branch + '.remote')
-            if configured_remote != 'origin':
-                return None
+            tracking = bool(branch and configured_remote == 'origin' and target.startswith('refs/heads/'))
+        except RuntimeError:
+            pass
+        if not tracking:
+            target = 'HEAD'
         dirty = bool(git(root, 'status', '--porcelain', '--untracked-files=normal'))
         return {'root': str(root), 'head': head, 'target': target,
-                'identity': hashlib.sha256((str(root) + '\n' + remote + '\n' + target).encode()).hexdigest(),
+                'identity': hashlib.sha256((str(root) + '\n' + remote + '\n' + target + '\n' + branch).encode()).hexdigest(),
+                'branch': branch, 'tracking': tracking,
                 'kind': 'omarchy' if first_party else 'plugin', 'dirty': dirty}
     except (RuntimeError, subprocess.SubprocessError, OSError):
         return None
@@ -87,7 +115,7 @@ def cached_status(plugin, metadata, cache):
         except (KeyError, ValueError, TypeError):
             return {'status': 'unchecked', 'kind': info['kind'], 'canUpdate': False}
     value['dirty'] = info['dirty']
-    value['canUpdate'] = value.get('status') == 'available' and not info['dirty']
+    value['canUpdate'] = value.get('status') == 'available' and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'
     if value.get('status') in ('available', 'diverged') and value.get('remoteHead') and not value.get('latestDate'):
         try:
             value.update(update_details(info, value['remoteHead'], metadata))
@@ -127,7 +155,46 @@ def compare_source(info, remote_head, metadata):
     details = update_details(info, remote_head, metadata) if status in ('available', 'diverged') else {}
     return {**info, **details, 'status': status, 'remoteHead': remote_head,
             'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'canUpdate': status == 'available' and not info['dirty']}
+            'canUpdate': status == 'available' and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'}
+
+
+def apply_update(plugin, metadata):
+    initial = source(plugin, metadata)
+    if not initial or initial['kind'] != 'plugin':
+        raise RuntimeError('This plugin is updated with Omarchy, not an independent plugin Git checkout.')
+    lock = cache_path().parent / ('update-' + hashlib.sha256(initial['root'].encode()).hexdigest() + '.lock')
+    lock.parent.mkdir(parents=True, exist_ok=True)
+    with lock.open('a') as file:
+        try:
+            fcntl.flock(file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise RuntimeError('This plugin repository is already being updated.')
+        before = source(plugin, metadata)
+        if not before or before['identity'] != initial['identity']:
+            raise RuntimeError('The running plugin source changed. Refresh before updating.')
+        if before['dirty']:
+            raise RuntimeError('Local changes block this update; your files were preserved.')
+        if not before['tracking']:
+            raise RuntimeError('Choose an attached branch tracking origin before updating this plugin.')
+        remote = fetch_source(before)
+        current = source(plugin, metadata)
+        if not current or current['identity'] != before['identity'] or current['head'] != before['head'] or current['dirty']:
+            raise RuntimeError('The plugin checkout changed during the source check. No update applied.')
+        status = compare_source(before, remote, metadata)
+        if status['status'] == 'diverged':
+            raise RuntimeError('Local and upstream history diverged. No files were changed.')
+        if status['status'] == 'ahead':
+            raise RuntimeError('This checkout has local commits ahead of upstream. No files were changed.')
+        if status['status'] == 'available':
+            # The fetched object is pinned; never create a merge, rebase or stash.
+            git(before['root'], '-c', 'core.hooksPath=/dev/null', 'merge', '--ff-only', '--no-edit', remote, timeout=30)
+        after = source(plugin, metadata)
+        if not after or after['head'] != remote or after['dirty'] or after['identity'] != before['identity']:
+            raise RuntimeError('Could not confirm the updated checkout. Refresh its status.')
+        cache = load_cache()
+        cache[plugin['id']] = compare_source(after, remote, metadata)
+        save_cache(cache)
+        return {'head': after['head'], 'changed': after['head'] != before['head']}
 
 
 def update_details(info, remote_head, metadata):

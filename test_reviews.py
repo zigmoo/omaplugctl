@@ -24,6 +24,9 @@ class ReviewerTests(unittest.TestCase):
         settings = patch.object(reviews, 'bar_settings', return_value={})
         settings.start()
         self.addCleanup(settings.stop)
+        provenance = patch.object(reviews, 'source_context', return_value={})
+        provenance.start()
+        self.addCleanup(provenance.stop)
 
     def test_partition_preserves_all_bytes_and_character_boundaries(self):
         source = 'diff --git a/large b/large\n@@ -1 +1 @@\n+' + '🦊é' * 500 + '\n'
@@ -175,6 +178,7 @@ class ReviewerTests(unittest.TestCase):
             large = 'diff --git a/large b/large\n@@ -1 +1 @@\n+' + 'x' * 260_000
             with patch.object(reviews, 'reviewer', return_value={'dil': True, 'agent': 'registered-agent', 'binding': 'registered-mini', 'label': 'Mini'}), \
                  patch.object(reviews, 'scratch', return_value=directory), patch.object(reviews, 'snapshot', return_value=(large, 'b' * 40)), \
+                 patch.object(reviews, 'source_context', return_value={'repository': 'https://github.com/owner/repo', 'upstream': 'https://github.com/owner/repo/commit/' + 'b' * 40}), \
                  patch.object(reviews, 'command', side_effect=command), patch.object(reviews, 'compose', return_value=directory / 'report.md'), \
                  patch.object(reviews.subprocess, 'run', side_effect=dispatch), patch.object(updates, 'source', return_value=source), \
                  patch.object(updates, 'compare_source', return_value={'status': 'available'}):
@@ -195,6 +199,7 @@ class ReviewerTests(unittest.TestCase):
             self.assertEqual(reviews.statuses()['example.widget']['status'], 'complete')
             manifest = json.loads((directory / 'coverage.json').read_text())
             self.assertEqual(manifest['parts'][-1]['end'], len(large.encode()))
+            self.assertIn('[Open repository](https://github.com/owner/repo)', (directory / 'review-report.txt').read_text())
 
     def test_failed_review_records_failure_and_never_opens_updater(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -241,6 +246,37 @@ class ReviewerTests(unittest.TestCase):
              patch.object(controller.subprocess, 'run') as install:
             self.assertEqual(controller.review_update('example.widget'), 0)
             install.assert_not_called()
+
+
+class SourceUrlTests(unittest.TestCase):
+    def test_https_and_ssh_origins_normalize_to_the_same_repository(self):
+        expected = 'https://github.com/promaaa/sync-calendar-omarchy'
+        for remote in ('https://github.com/promaaa/sync-calendar-omarchy.git',
+                       'git@github.com:promaaa/sync-calendar-omarchy.git',
+                       'ssh://git@github.com/promaaa/sync-calendar-omarchy.git'):
+            self.assertEqual(reviews.repository_url(remote), expected)
+
+    def test_credentials_and_query_tokens_never_enter_report_links(self):
+        result = reviews.repository_url('https://person:secret@github.com/owner/repo.git?token=private#fragment')
+        self.assertEqual(result, 'https://github.com/owner/repo')
+
+    def test_local_or_unsafe_origins_do_not_get_invented_web_links(self):
+        for remote in ('/work/remote.git', 'file:///work/remote.git', 'javascript:alert(1)', 'https://example.com/../repo'):
+            self.assertEqual(reviews.repository_url(remote), '')
+
+    def test_report_links_pin_both_commits_and_use_two_dot_tree_comparison(self):
+        info = {'root': '/source', 'head': 'a' * 40}
+        with patch.object(updates, 'git', return_value='git@github.com:owner/repo.git'):
+            context = reviews.source_context(info, 'b' * 40)
+        self.assertEqual(context['upstream'], 'https://github.com/owner/repo/commit/' + 'b' * 40)
+        self.assertEqual(context['comparison'], 'https://github.com/owner/repo/compare/' + 'a' * 40 + '..' + 'b' * 40)
+        self.assertIn('Source repository: [Open repository](https://github.com/owner/repo)', reviews.source_markdown(context))
+        self.assertIn('Reviewed upstream commit:', reviews.source_markdown(context))
+
+    def test_unknown_host_gets_repository_link_without_invented_routes(self):
+        with patch.object(updates, 'git', return_value='https://git.example.org/team/project.git'):
+            context = reviews.source_context({'root': '/source', 'head': 'a' * 40}, 'b' * 40)
+        self.assertEqual(context, {'repository': 'https://git.example.org/team/project'})
 
 
 if __name__ == '__main__': unittest.main()

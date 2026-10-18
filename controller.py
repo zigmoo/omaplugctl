@@ -2,10 +2,29 @@
 """OmaPlugCtl: argv-only commands with datasource readback."""
 import argparse, datetime, json, os, pathlib, re, subprocess, sys, time, urllib.request, fcntl
 import updates
+import malware
 SELF = 'moo.omaplugctl'
 SECTIONS = ('left', 'centerBegin', 'center', 'centerEnd', 'right', 'tray')
 EDGES = ('top', 'bottom', 'left', 'right')
 SORT_ORDERS = ('name', 'screen', 'updates')
+
+
+def scan_before_update():
+    config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
+    for entries in config.get('bar', {}).get('layout', {}).values():
+        for entry in entries if isinstance(entries, list) else []:
+            if isinstance(entry, dict) and entry.get('id') == SELF:
+                return entry.get('scanBeforeUpdate', True) is not False
+    return True
+
+
+def set_scan_before_update(value):
+    if value not in ('true', 'false'):
+        raise ValueError('Choose whether to scan updates before installation.')
+    run(['omarchy', 'bar', 'set', SELF, 'scanBeforeUpdate', value])
+    if scan_before_update() != (value == 'true'):
+        raise RuntimeError('The malware scan preference was not confirmed.')
+    return {'plugins': inventory(), 'message': 'Malware scan preference saved.'}
 
 def configured_sort():
     config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
@@ -27,7 +46,7 @@ def sort_plugins(plugins, order):
             update = plugin.get('update') or {}
             try: date = datetime.date.fromisoformat(update.get('latestDate', '')).toordinal()
             except (ValueError, TypeError): date = 0
-            return (update.get('status') not in ('available', 'diverged'), -date, name(plugin))
+            return (update.get('status') not in ('available', 'rewritten', 'diverged'), -date, name(plugin))
         return sorted(plugins, key=pending)
     return sorted(plugins, key=name)
 
@@ -127,7 +146,7 @@ def local_update_date(path, manifest):
     except (ValueError, OverflowError, OSError):
         return ''
 
-def plugin_details(metadata):
+def plugin_details(metadata, history_cache=None):
     manifest = {}
     path = metadata.get('manifestPath')
     if isinstance(path, str):
@@ -138,7 +157,59 @@ def plugin_details(metadata):
         except (OSError, ValueError):
             pass
     updated = local_update_date(pathlib.Path(path), manifest) if isinstance(path, str) and manifest else ''
-    return {'author': plugin_author(manifest), 'updatedDate': updated}
+    author = plugin_author(manifest)
+    result = {'author': author, 'updatedDate': updated}
+    if not author or author.casefold() in ('omarchy', 'omarchy team', 'omacom'):
+        inferred = first_commit_author(metadata, history_cache if history_cache is not None else author_cache())
+        if inferred:
+            result.update(inferred)
+    return result
+
+
+def first_commit_author(metadata, cache):
+    directory = metadata.get('sourceDir')
+    manifest = metadata.get('manifestPath')
+    if not directory or not manifest:
+        return {}
+    try:
+        root = pathlib.Path(updates.git(directory, 'rev-parse', '--show-toplevel')).resolve()
+        head = updates.git(root, 'rev-parse', 'HEAD')
+        paths = [pathlib.Path(manifest)]
+        for entry in (metadata.get('entryPoints') or {}).values():
+            if isinstance(entry, str): paths.append(pathlib.Path(manifest).parent / entry)
+        paths = sorted({str(path.resolve().relative_to(root)) for path in paths})
+        key = str(root) + '\n' + head + '\n' + '\n'.join(paths)
+        if key in cache:
+            return cache[key]
+        candidates = []
+        for path in paths:
+            rows = updates.git(root, 'log', '--follow', '--diff-filter=A', '--format=%H%x1f%an%x1f%ct', '--', path, timeout=20).splitlines()
+            if rows:
+                commit, author, timestamp = rows[-1].split('\x1f')
+                candidates.append((int(timestamp), commit, ' '.join(author.split())[:200]))
+        if not candidates:
+            cache[key] = {}
+            return {}
+        timestamp, commit, author = min(candidates)
+        result = {'author': author, 'authorSource': 'first-commit', 'authorCommit': commit,
+                  'authorDate': datetime.datetime.fromtimestamp(timestamp, datetime.timezone.utc).date().isoformat(),
+                  'authorHistoryShallow': updates.git(root, 'rev-parse', '--is-shallow-repository') == 'true'}
+        cache[key] = result
+        return result
+    except (RuntimeError, OSError, ValueError, subprocess.SubprocessError):
+        return {}
+
+
+def author_cache():
+    try:
+        path = updates.cache_path().with_name('authors.json')
+        if path.stat().st_size < 1_000_000:
+            data = json.loads(path.read_text())
+            return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        pass
+    return {}
+
 
 def inventory():
     plugins = json.loads(run(['omarchy-shell', 'shell', 'listPlugins']))
@@ -146,6 +217,8 @@ def inventory():
     metadata = {p['id']: p for p in catalog if isinstance(p, dict) and isinstance(p.get('id'), str)}
     update_cache = updates.load_cache()
     operations = updates.operations()
+    history = author_cache()
+    previous_history = dict(history)
     config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
     layout = config.get('bar', {}).get('layout', {})
     result = []
@@ -160,13 +233,18 @@ def inventory():
                     instances.append({'section': section, 'index': index})
         p['instances'] = instances
         p['description'] = plugin_description(metadata.get(p['id'], {}))
-        p.update(plugin_details(metadata.get(p['id'], {})))
+        p.update(plugin_details(metadata.get(p['id'], {}), history))
         p['isSelf'] = p['id'] == SELF
         p['canDisable'] = not p['isSelf'] and p.get('canDisable', True)
         p['canRemove'] = not p['isSelf'] and not p['firstParty'] and (pathlib.Path.home()/'.config/omarchy/plugins'/p['id']).exists()
         p['update'] = updates.cached_status(p, metadata.get(p['id'], {}), update_cache)
         p['operation'] = operations.get(p['id'], {})
         result.append(p)
+    if history != previous_history:
+        path = updates.cache_path().with_name('authors.json')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Reuse the same atomic-cache writer with an explicit destination.
+        updates.save_cache(history, path=path)
     return result
 
 def check_updates():
@@ -174,7 +252,7 @@ def check_updates():
     metadata = {p['id']: p for p in json.loads(run(['omarchy-plugin-catalog']))}
     updates.check_all(plugins, metadata)
     plugins = inventory()
-    available = sum(p['update']['status'] in ('available', 'diverged') for p in plugins)
+    available = sum(p['update']['status'] in ('available', 'rewritten', 'diverged') for p in plugins)
     failed = sum(p['update']['status'] == 'error' for p in plugins)
     return {'plugins': plugins, 'message': f'{available} updates available. {failed} source checks failed.'}
 
@@ -223,11 +301,15 @@ def launch_update(pid):
 def apply_update(pid):
     plugin, source = update_target(pid)
     metadata = next(p for p in json.loads(run(['omarchy-plugin-catalog'])) if p['id'] == pid)
-    result = updates.apply_update(plugin, metadata)
+    result = updates.apply_update(plugin, metadata, scan=scan_before_update())
     # User plugin files are watched by Omarchy; a rescan also picks up manifest
     # changes. Failure to rescan does not undo a successfully verified Git update.
     message = 'Updated to ' + result['head'][:8] + '.' if result['changed'] else 'Already up to date.'
-    updates.save_operation(pid, status='done', message=message)
+    if result.get('backup'):
+        message += ' Upstream history reconciled; previous version backed up.'
+    if result.get('scan', {}).get('status') == 'no-threats-detected':
+        message += ' ClamAV: no threats detected.'
+    updates.save_operation(pid, status='done', message=message, backup=result.get('backup', ''), scan=result.get('scan', {}))
     if result['changed']:
         try:
             run(['omarchy-shell', 'shell', 'rescanPlugins'])
@@ -300,7 +382,7 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['list', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
@@ -322,11 +404,14 @@ def main():
         else:
             if a.action == 'list': data = {'plugins': inventory(), 'message': ''}
             elif a.action == 'sort': data = set_sort(a.id)
+            elif a.action == 'set-scan': data = set_scan_before_update(a.id)
             elif a.action == 'check-updates': data = check_updates()
             elif a.action == 'update': data = launch_update(a.id)
             else: data = execute(a.action, a.id, a.section, a.source, a.index, a.confirmed)
             data['barPosition'] = bar_position()
         data['sortOrder'] = configured_sort()
+        data['scanBeforeUpdate'] = scan_before_update()
+        data['scannerStatus'] = malware.status()
         data['plugins'] = sort_plugins(data['plugins'], data['sortOrder'])
         print(json.dumps({'ok': True, **data}))
     except Exception as e:

@@ -144,7 +144,7 @@ Item {
         spacing: Style.space(3)
         HoverHandler { id: actionHover }
         UpdateIndicator {
-          visible: !!root.plugin.update && root.plugin.update.kind !== "omarchy" && ["available", "diverged"].indexOf(root.plugin.update.status) !== -1
+          visible: !!root.plugin.update && root.plugin.update.kind !== "omarchy" && ["available", "rewritten", "diverged"].indexOf(root.plugin.update.status) !== -1
           plugin: root.plugin
           host: root.host
           enabled: root.available && (!root.plugin.operation || root.plugin.operation.status !== "working")

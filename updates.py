@@ -8,16 +8,17 @@ import pathlib
 import subprocess
 import tempfile
 import fcntl
+import collections
 
 
-def git(directory, *args, timeout=10):
+def git(directory, *args, timeout=10, body=None, raw=False):
     env = dict(os.environ, GIT_TERMINAL_PROMPT='0',
                GIT_SSH_COMMAND='ssh -oBatchMode=yes -oConnectTimeout=7')
     process = subprocess.run(['git', '-C', str(directory), *args], capture_output=True,
-                             text=True, timeout=timeout, env=env)
+                             text=True, input=body, timeout=timeout, env=env)
     if process.returncode:
         raise RuntimeError('Could not read or contact the source repository.')
-    return process.stdout.strip()
+    return process.stdout if raw else process.stdout.strip()
 
 
 def cache_path():
@@ -33,8 +34,8 @@ def load_cache():
         return {}
 
 
-def save_cache(value):
-    path = cache_path()
+def save_cache(value, path=None):
+    path = path or cache_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     # Atomic replacement prevents a refresh from reading half a check result.
     with tempfile.NamedTemporaryFile(mode='w', dir=path.parent, prefix='.updates-', delete=False) as file:
@@ -115,8 +116,8 @@ def cached_status(plugin, metadata, cache):
         except (KeyError, ValueError, TypeError):
             return {'status': 'unchecked', 'kind': info['kind'], 'canUpdate': False}
     value['dirty'] = info['dirty']
-    value['canUpdate'] = value.get('status') == 'available' and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'
-    if value.get('status') in ('available', 'diverged') and value.get('remoteHead') and not value.get('latestDate'):
+    value['canUpdate'] = value.get('status') in ('available', 'rewritten') and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'
+    if value.get('status') in ('available', 'rewritten', 'diverged') and value.get('remoteHead') and not value.get('latestDate'):
         try:
             value.update(update_details(info, value['remoteHead'], metadata))
         except (RuntimeError, OSError, ValueError, subprocess.SubprocessError):
@@ -147,18 +148,41 @@ def compare_source(info, remote_head, metadata):
     ahead, behind = map(int, git(info['root'], 'rev-list', '--left-right', '--count',
                                 info['head'] + '...' + remote_head).split())
     status = 'diverged' if ahead and behind else 'ahead' if ahead else 'available' if behind else 'current'
+    if status == 'diverged' and info['kind'] == 'plugin' and equivalent_history(info, remote_head):
+        status = 'rewritten'
     if status == 'available' and info['kind'] == 'omarchy':
         changes = git(info['root'], 'diff', '--name-only', info['head'], remote_head,
                       '--', *plugin_paths(metadata, info['root']))
         if not changes:
             status = 'current'
-    details = update_details(info, remote_head, metadata) if status in ('available', 'diverged') else {}
+    details = update_details(info, remote_head, metadata) if status in ('available', 'rewritten', 'diverged') else {}
     return {**info, **details, 'status': status, 'remoteHead': remote_head,
             'checkedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-            'canUpdate': status == 'available' and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'}
+            'canUpdate': status in ('available', 'rewritten') and not info['dirty'] and info['tracking'] and info['kind'] == 'plugin'}
 
 
-def apply_update(plugin, metadata):
+def equivalent_history(info, remote_head):
+    """Every installed-only commit must have a whitespace-preserving match."""
+    root, head = info['root'], info['head']
+    local = set(git(root, 'rev-list', head, '--not', remote_head).splitlines())
+    if not local or git(root, 'rev-list', '--merges', head, '--not', remote_head):
+        return False
+
+    def patches(tip, exclude):
+        text = git(root, 'log', '--no-merges', '--pretty=medium', '--patch', '--binary',
+                   '--full-index', '--no-ext-diff', '--no-textconv', '--no-renames',
+                   tip, '--not', exclude, raw=True, timeout=30)
+        rows = git(root, 'patch-id', '--verbatim', body=text, timeout=30).splitlines()
+        return {commit: patch for patch, commit in (row.split() for row in rows)}
+
+    installed = patches(head, remote_head)
+    if set(installed) != local:  # Empty commits and incomplete evidence fail closed.
+        return False
+    upstream = patches(remote_head, head)
+    return not (collections.Counter(installed.values()) - collections.Counter(upstream.values()))
+
+
+def apply_update(plugin, metadata, *, scan=True):
     initial = source(plugin, metadata)
     if not initial or initial['kind'] != 'plugin':
         raise RuntimeError('This plugin is updated with Omarchy, not an independent plugin Git checkout.')
@@ -181,20 +205,46 @@ def apply_update(plugin, metadata):
         if not current or current['identity'] != before['identity'] or current['head'] != before['head'] or current['dirty']:
             raise RuntimeError('The plugin checkout changed during the source check. No update applied.')
         status = compare_source(before, remote, metadata)
+        backup = ''
         if status['status'] == 'diverged':
-            raise RuntimeError('Local and upstream history diverged. No files were changed.')
+            raise RuntimeError('History diverged; installed commits are not all reproduced upstream. No files were changed.')
         if status['status'] == 'ahead':
             raise RuntimeError('This checkout has local commits ahead of upstream. No files were changed.')
+        scan_result = {'status': 'disabled'}
+        if scan and status['status'] in ('available', 'rewritten'):
+            import malware
+            save_operation(plugin['id'], status='working', message='Scanning update with ClamAV…')
+            scan_result = malware.scan_commit(before['root'], remote)
+            current = source(plugin, metadata)
+            if not current or current['identity'] != before['identity'] or current['head'] != before['head'] or current['dirty']:
+                raise RuntimeError('The plugin changed during malware scanning. No update applied.')
         if status['status'] == 'available':
             # The fetched object is pinned; never create a merge, rebase or stash.
-            git(before['root'], '-c', 'core.hooksPath=/dev/null', 'merge', '--ff-only', '--no-edit', remote, timeout=30)
+            git(before['root'], '-c', 'core.hooksPath=/dev/null', 'merge', '--ff-only', '--no-edit', '--no-overwrite-ignore', remote, timeout=30)
+        elif status['status'] == 'rewritten':
+            # Patch checks take time: revalidate the branch, origin and worktree
+            # before saving history and using Git's non-forced checkout safety.
+            current = source(plugin, metadata)
+            if not current or current['identity'] != before['identity'] or current['head'] != before['head'] or current['dirty']:
+                raise RuntimeError('The plugin changed during history verification. No update applied.')
+            stamp = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+            backup = 'backup/omaplugctl/' + stamp + '-' + before['head'][:12]
+            git(before['root'], 'branch', '--no-track', backup, before['head'])
+            if git(before['root'], 'rev-parse', 'refs/heads/' + backup) != before['head']:
+                raise RuntimeError('Could not verify the backup branch; update stopped.')
+            try:
+                git(before['root'], '-c', 'core.hooksPath=/dev/null', 'checkout', '--no-track',
+                    '--no-overwrite-ignore', '-B', before['branch'], remote, timeout=30)
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                raise RuntimeError('History reconciliation stopped; previous version is preserved at ' + backup + '.') from exc
         after = source(plugin, metadata)
         if not after or after['head'] != remote or after['dirty'] or after['identity'] != before['identity']:
             raise RuntimeError('Could not confirm the updated checkout. Refresh its status.')
         cache = load_cache()
         cache[plugin['id']] = compare_source(after, remote, metadata)
+        cache[plugin['id']]['scan'] = scan_result
         save_cache(cache)
-        return {'head': after['head'], 'changed': after['head'] != before['head']}
+        return {'head': after['head'], 'changed': after['head'] != before['head'], 'backup': backup, 'scan': scan_result}
 
 
 def update_details(info, remote_head, metadata):

@@ -23,6 +23,9 @@ Item {
   property string pendingAction: ""
   property string barPosition: ""
   property string sortOrder: "screen"
+  property string currentTab: "plugins"
+  property bool scanBeforeUpdate: true
+  property string scannerStatus: ""
   readonly property bool busy: controller.running
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
@@ -31,7 +34,7 @@ Item {
   readonly property string noDescriptionText: strings.t("plugin.noDescription")
   function pluginFooter(plugin) {
     var date = plugin.updatedDate ? strings.t("plugin.updatedLocal").arg(plugin.updatedDate) : strings.t("plugin.updateUnknown")
-    var author = plugin.author || strings.t("plugin.authorUnknown")
+    var author = plugin.author ? (plugin.authorSource === "first-commit" ? strings.t(plugin.authorHistoryShallow ? "plugin.authorShallow" : "plugin.authorFirstCommit").arg(plugin.author).arg((plugin.authorCommit || "").slice(0, 8)) : plugin.author) : strings.t("plugin.authorUnknown")
     return strings.t(plugin.firstParty && !plugin.clonedFrom ? "plugin.footerDefault" : "plugin.footer").arg(date).arg(author)
   }
   function updateLabel(plugin) {
@@ -48,13 +51,14 @@ Item {
     if (update.latestDate) lines.push(strings.t("updates.latest").arg(update.latestDate))
     for (var i = 0; i < (update.notes || []).length; i++) lines.push("• " + update.notes[i])
     if (update.status === "diverged") lines.push(strings.t("updates.divergedHelp"))
+    else if (update.status === "rewritten") lines.push(strings.t("updates.rewrittenHelp"))
     else if (update.dirty) lines.push(strings.t("updates.dirtyHelp"))
     else lines.push(update.kind === "omarchy" ? strings.t("updates.omarchyHelp") : strings.t("updates.updateHelp"))
     return lines.join("\n")
   }
   function updatePlugin(plugin) {
     if (plugin.operation && plugin.operation.status === "working") return
-    if (plugin.update && (plugin.update.status === "available" || plugin.update.status === "diverged")) invoke("update", plugin.id)
+    if (plugin.update && ["available", "rewritten", "diverged"].indexOf(plugin.update.status) !== -1) invoke("update", plugin.id)
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }
   function text(key) { return strings.t(key) }
@@ -126,8 +130,9 @@ Item {
     function hide(): void { root.close() }
     function position(edge: string): void { root.moveBar(edge) }
     function sort(order: string): void { root.invoke("sort", order) }
+    function tab(name: string): void { if (name === "plugins" || name === "config") root.currentTab = name }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
   }
   Process {
@@ -166,6 +171,8 @@ Item {
           root.plugins = result.plugins
           root.barPosition = result.barPosition
           root.sortOrder = result.sortOrder || "screen"
+          root.scanBeforeUpdate = result.scanBeforeUpdate !== false
+          root.scannerStatus = result.scannerStatus || ""
           Qt.callLater(function() { pluginList.contentY = Math.min(oldY, Math.max(0, pluginList.contentHeight - pluginList.height)) })
         }
       } catch (e) {
@@ -180,15 +187,102 @@ Item {
     owner: root
     anchorItem: root.anchorItem
     open: root.menuOpen
-    focusTarget: edgePicker.focusTarget
+    focusTarget: root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
     contentWidth: fittedContentWidth(Style.space(420))
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
       id: frame
       anchors.fill: parent
       spacing: Style.space(14)
+      Row {
+        id: tabs
+        width: parent.width
+        spacing: Style.space(8)
+        Ui.Button {
+          objectName: "pluginsTabButton"
+          text: strings.t("tabs.plugins")
+          foreground: root.currentTab === "plugins" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.currentTab = "plugins"
+        }
+        Ui.Button {
+          objectName: "configTabButton"
+          text: strings.t("tabs.config")
+          foreground: root.currentTab === "config" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.currentTab = "config"
+        }
+      }
+      Column {
+        objectName: "managerConfigPanel"
+        width: parent.width
+        spacing: Style.space(14)
+        visible: root.currentTab === "config"
+        Text {
+          width: parent.width
+          text: strings.t("config.title")
+          textFormat: Text.PlainText
+          color: Commons.Color.popups.text
+          font.family: root.themeFont
+          font.pixelSize: Style.font.body
+        }
+        Text {
+          width: parent.width
+          text: strings.t("config.sort")
+          textFormat: Text.PlainText
+          color: Commons.Color.popups.text
+          font.family: root.themeFont
+          font.pixelSize: Style.font.caption
+        }
+        ThemedPicker {
+          id: configSortPicker
+          objectName: "configSortPicker"
+          width: parent.width
+          model: [strings.t("sort.screen"), strings.t("sort.name"), strings.t("sort.updates")]
+          currentIndex: ["screen", "name", "updates"].indexOf(root.sortOrder)
+          fontFamily: root.themeFont
+          enabled: !root.busy
+          onActivated: function(index) {
+            var choice = ["screen", "name", "updates"][index]
+            currentIndex = Qt.binding(function() { return ["screen", "name", "updates"].indexOf(root.sortOrder) })
+            root.invoke("sort", choice)
+          }
+        }
+        Text {
+          width: parent.width
+          text: strings.t("config.updateHelp")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Commons.Color.popups.text
+          font.family: root.themeFont
+          font.pixelSize: Style.font.caption
+        }
+        Ui.Toggle {
+          objectName: "scanBeforeUpdateToggle"
+          width: parent.width
+          label: strings.t("config.scanBeforeUpdate")
+          description: root.scannerStatus
+          fontFamily: root.themeFont
+          foreground: Commons.Color.popups.text
+          checked: root.scanBeforeUpdate
+          enabled: !root.busy
+          onClicked: root.invoke("set-scan", root.scanBeforeUpdate ? "false" : "true")
+        }
+        Text {
+          width: parent.width
+          text: strings.t("config.scanHelp")
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+          color: Commons.Color.popups.text
+          font.family: root.themeFont
+          font.pixelSize: Style.font.caption
+        }
+      }
       Ui.PanelHero {
         id: hero
+        visible: root.currentTab === "plugins"
         width: parent.width
         title: "OmaPlugCtl"
         meta: root.plugins.length + " plugins · " + root.plugins.filter(function(p) { return p.enabled }).length + " enabled"
@@ -222,6 +316,7 @@ Item {
       }
       Row {
         id: barControls
+        visible: root.currentTab === "plugins"
         objectName: "barPositionControls"
         width: parent.width
         spacing: Style.space(20)
@@ -272,11 +367,12 @@ Item {
           }
         }
       }
-      Ui.PanelSeparator { width: parent.width; foreground: Commons.Color.popups.text }
+      Ui.PanelSeparator { visible: root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
       ListView {
         id: pluginList
+        visible: root.currentTab === "plugins"
         width: parent.width
-        height: Math.max(0, frame.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 4)
+        height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)
         clip: true
         spacing: Style.space(5)
         model: root.plugins

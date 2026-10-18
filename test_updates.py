@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import controller
 import updates
+import malware
 
 
 class UpdateTests(unittest.TestCase):
@@ -18,6 +19,9 @@ class UpdateTests(unittest.TestCase):
         self.env = patch.dict(os.environ, {'XDG_STATE_HOME': str(self.base / 'state')})
         self.env.start()
         self.addCleanup(self.env.stop)
+        scanner = patch.object(malware, 'scan_commit', return_value={'status': 'no-threats-detected'})
+        scanner.start()
+        self.addCleanup(scanner.stop)
         self.remote = self.base / 'remote.git'
         self.writer = self.base / 'writer'
         self.installed = self.base / 'installed'
@@ -186,6 +190,79 @@ class UpdateTests(unittest.TestCase):
         self.advance_remote()
         updates.apply_update(self.plugin, self.metadata)
         self.assertFalse(sentinel.exists())
+
+    def rewritten_remote(self, replacement=None):
+        self.advance_remote()
+        self.command('git', '-C', str(self.installed), 'pull', '--ff-only')
+        old = updates.git(self.installed, 'rev-parse', 'HEAD')
+        if replacement is not None:
+            (self.writer / 'Widget.qml').write_text(replacement)
+            self.command('git', '-C', str(self.writer), 'add', '.')
+        self.command('git', '-C', str(self.writer), 'commit', '--amend', '-m', 'Reissued upstream commit')
+        (self.writer / 'new.txt').write_text('new release')
+        self.commit(self.writer, 'New upstream release')
+        self.command('git', '-C', str(self.writer), 'push', '--force', 'origin', 'master')
+        return old
+
+    def test_rewritten_history_updates_with_verified_backup(self):
+        old = self.rewritten_remote()
+        result = self.check()
+        self.assertEqual(result['status'], 'rewritten')
+        self.assertTrue(result['canUpdate'])
+        result = updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', result['backup']), old)
+        self.assertEqual(result['head'], updates.git(self.writer, 'rev-parse', 'HEAD'))
+        self.assertEqual(updates.git(self.installed, 'branch', '--show-current'), 'master')
+        self.assertEqual(updates.git(self.installed, 'config', 'branch.master.merge'), 'refs/heads/master')
+        self.assertEqual((self.installed / 'new.txt').read_text(), 'new release')
+        self.assertEqual(self.check()['status'], 'current')
+
+    def test_threat_blocks_update_before_any_checkout_change(self):
+        self.advance_remote()
+        before = updates.git(self.installed, 'rev-parse', 'HEAD')
+        with patch.object(malware, 'scan_commit', side_effect=RuntimeError('ClamAV detected a threat')):
+            with self.assertRaisesRegex(RuntimeError, 'detected a threat'):
+                updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), before)
+        self.assertEqual((self.installed / 'Widget.qml').read_text(), 'initial')
+
+    def test_whitespace_changes_are_not_treated_as_equivalent(self):
+        old = self.rewritten_remote(' new remote version')
+        # Git cherry ignores whitespace, but our comparison must preserve it.
+        self.check()
+        self.assertTrue(updates.git(self.installed, 'cherry', 'origin/master', 'HEAD').startswith('-'))
+        with self.assertRaisesRegex(RuntimeError, 'not all reproduced'):
+            updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), old)
+        self.assertEqual((self.installed / 'Widget.qml').read_text(), 'new remote version')
+
+    def test_empty_commit_is_not_silently_discarded(self):
+        self.rewritten_remote()
+        self.command('git', '-C', str(self.installed), 'commit', '--allow-empty', '-m', 'Local metadata marker')
+        old = updates.git(self.installed, 'rev-parse', 'HEAD')
+        with self.assertRaisesRegex(RuntimeError, 'not all reproduced'):
+            updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), old)
+
+    def test_ignored_local_file_is_preserved_during_reconciliation(self):
+        old = self.rewritten_remote()
+        (self.installed / '.git/info/exclude').write_text('new.txt\n')
+        (self.installed / 'new.txt').write_text('personal ignored data')
+        with self.assertRaisesRegex(RuntimeError, 'previous version is preserved'):
+            updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), old)
+        self.assertEqual((self.installed / 'new.txt').read_text(), 'personal ignored data')
+
+    def test_edit_during_history_verification_is_preserved(self):
+        old = self.rewritten_remote()
+        def verify(*args):
+            (self.installed / 'Widget.qml').write_text('concurrent personal edit')
+            return True
+        with patch.object(updates, 'equivalent_history', side_effect=verify):
+            with self.assertRaisesRegex(RuntimeError, 'plugin changed'):
+                updates.apply_update(self.plugin, self.metadata)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), old)
+        self.assertEqual((self.installed / 'Widget.qml').read_text(), 'concurrent personal edit')
 
     def test_launch_detaches_update_without_terminal_agent_or_prompt(self):
         with patch.object(controller, 'update_target', return_value=(self.plugin, {'kind':'plugin','tracking':True})), \

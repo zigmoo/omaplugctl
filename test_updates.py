@@ -77,12 +77,14 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), source['head'])
         self.assertEqual((self.installed / 'Widget.qml').read_text(), 'initial')
 
-    def test_oversized_review_refuses_incomplete_agent_approval(self):
+    def test_large_snapshot_is_partitioned_without_dropping_source(self):
         self.advance_remote()
         source = updates.source(self.plugin, self.metadata)
-        with patch.object(reviews, 'LIMIT', 5):
-            with self.assertRaisesRegex(RuntimeError, 'bounded review size'):
-                reviews.snapshot(self.plugin, source, self.metadata)
+        body, remote = reviews.snapshot(self.plugin, source, self.metadata)
+        parts = reviews.partition(body, budget=40)
+        self.assertGreater(len(parts), 1)
+        self.assertEqual(''.join(p['text'] for p in parts), body)
+        self.assertEqual(updates.git(self.installed, 'rev-parse', 'HEAD'), source['head'])
 
     def test_current_repository_and_cache(self):
         self.assertEqual(self.check()['status'], 'current')

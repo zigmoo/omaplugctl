@@ -23,6 +23,7 @@ Item {
   property string pendingAction: ""
   property string barPosition: ""
   property string sortOrder: "screen"
+  property string currentTab: "plugins"
   readonly property bool busy: controller.running
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
@@ -53,6 +54,7 @@ Item {
     return lines.join("\n")
   }
   function reviewUpdate(plugin) {
+    if (plugin.review && plugin.review.status === "working") { failed = false; message = plugin.review.progress || strings.t("reviews.working"); return }
     if (plugin.update && (plugin.update.status === "available" || plugin.update.status === "diverged")) invoke("update", plugin.id)
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }
@@ -125,9 +127,32 @@ Item {
     function hide(): void { root.close() }
     function position(edge: string): void { root.moveBar(edge) }
     function sort(order: string): void { root.invoke("sort", order) }
+    function tab(name: string): void { if (name === "plugins" || name === "config") root.currentTab = name }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id }), tab: root.currentTab, reviewerSource: configPanel.configData.sourceType || "", reviewerSelected: configPanel.configData.selected || "", reviewerBusy: configPanel.busy, reportPlugins: root.plugins.filter(function(p) { return p.review && (p.review.artifact || p.review.localReport) }).map(function(p) { return p.id })})
     }
+  }
+  Process {
+    id: reviewStatusReader
+    command: ["python3", root.helper, "review-status"]
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var result = JSON.parse(text)
+          if (result.ok) {
+            var changed = root.plugins.some(function(p) { return JSON.stringify(p.review || {}) !== JSON.stringify(result.reviews[p.id] || {}) })
+            if (changed) root.plugins = root.plugins.map(function(p) { return Object.assign({}, p, {review: result.reviews[p.id] || {}}) })
+          }
+        } catch (e) { console.warn("OmaPlugCtl could not read review progress: " + e) }
+      }
+    }
+  }
+  Timer {
+    interval: 2000
+    repeat: true
+    running: root.menuOpen
+    onTriggered: if (!reviewStatusReader.running && !root.busy) reviewStatusReader.running = true
   }
   Process {
     id: controller
@@ -157,15 +182,44 @@ Item {
     owner: root
     anchorItem: root.anchorItem
     open: root.menuOpen
-    focusTarget: edgePicker.focusTarget
+    focusTarget: root.currentTab === "config" ? configPanel.focusTarget : edgePicker.focusTarget
     contentWidth: fittedContentWidth(Style.space(420))
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
       id: frame
       anchors.fill: parent
       spacing: Style.space(14)
+      Row {
+        id: tabs
+        width: parent.width
+        spacing: Style.space(8)
+        Ui.Button {
+          objectName: "pluginsTabButton"
+          text: strings.t("tabs.plugins")
+          foreground: root.currentTab === "plugins" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.currentTab = "plugins"
+        }
+        Ui.Button {
+          objectName: "configTabButton"
+          text: strings.t("tabs.config")
+          foreground: root.currentTab === "config" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.currentTab = "config"
+        }
+      }
+      ReviewerConfig {
+        id: configPanel
+        objectName: "reviewerConfigPanel"
+        width: parent.width
+        visible: root.currentTab === "config"
+        host: root
+      }
       Ui.PanelHero {
         id: hero
+        visible: root.currentTab === "plugins"
         width: parent.width
         title: "OmaPlugCtl"
         meta: root.plugins.length + " plugins · " + root.plugins.filter(function(p) { return p.enabled }).length + " enabled"
@@ -199,6 +253,7 @@ Item {
       }
       Row {
         id: barControls
+        visible: root.currentTab === "plugins"
         objectName: "barPositionControls"
         width: parent.width
         spacing: Style.space(20)
@@ -249,11 +304,12 @@ Item {
           }
         }
       }
-      Ui.PanelSeparator { width: parent.width; foreground: Commons.Color.popups.text }
+      Ui.PanelSeparator { visible: root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
       ListView {
         id: pluginList
+        visible: root.currentTab === "plugins"
         width: parent.width
-        height: Math.max(0, frame.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 4)
+        height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)
         clip: true
         spacing: Style.space(5)
         model: root.plugins
@@ -283,6 +339,7 @@ Item {
       }
       Text {
         id: status
+        visible: root.currentTab === "plugins"
         width: parent.width
         text: root.message || "Scroll to see all plugins"
         color: root.failed ? Commons.Color.urgent : Qt.darker(Commons.Color.popups.text, 1.4)

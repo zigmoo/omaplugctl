@@ -122,6 +122,17 @@ Item {
           color: Qt.darker(root.ink, 1.4)
           elide: Text.ElideRight
         }
+        Text {
+          objectName: "pluginReviewProgress"
+          width: parent.width
+          visible: !!root.plugin.review && ["working", "failed"].indexOf(root.plugin.review.status) !== -1
+          text: root.plugin.review ? root.plugin.review.progress || "" : ""
+          textFormat: Text.PlainText
+          color: root.plugin.review && root.plugin.review.status === "failed" ? Commons.Color.urgent : Commons.Color.accent
+          font.family: root.host.themeFont
+          font.pixelSize: Style.font.caption
+          elide: Text.ElideRight
+        }
       }
       Row {
         id: actions
@@ -129,6 +140,17 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(3)
         HoverHandler { id: actionHover }
+        Ui.PanelActionButton {
+          objectName: "pluginReviewButton"
+          visible: !!root.plugin.review && (!!root.plugin.review.artifact || !!root.plugin.review.localReport)
+          iconText: "󰈙"
+          tooltipText: root.host.text("reviews.view")
+          fontFamily: root.host.themeFont
+          foreground: Commons.Color.accent
+          focusable: true
+          enabled: root.available
+          onClicked: root.host.invoke("view-review", root.plugin.id)
+        }
         UpdateIndicator {
           visible: !!root.plugin.update && ["available", "diverged"].indexOf(root.plugin.update.status) !== -1
           plugin: root.plugin

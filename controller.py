@@ -146,6 +146,7 @@ def inventory():
     catalog = json.loads(run(['omarchy-plugin-catalog']))
     metadata = {p['id']: p for p in catalog if isinstance(p, dict) and isinstance(p.get('id'), str)}
     update_cache = updates.load_cache()
+    review_cache = reviews.statuses()
     config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
     layout = config.get('bar', {}).get('layout', {})
     result = []
@@ -165,6 +166,7 @@ def inventory():
         p['canDisable'] = not p['isSelf'] and p.get('canDisable', True)
         p['canRemove'] = not p['isSelf'] and not p['firstParty'] and (pathlib.Path.home()/'.config/omarchy/plugins'/p['id']).exists()
         p['update'] = updates.cached_status(p, metadata.get(p['id'], {}), update_cache)
+        p['review'] = review_cache.get(p['id'], {})
         result.append(p)
     return result
 
@@ -279,6 +281,9 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
         url = about_url(p)
         run(['xdg-open', url])
         return {'plugins': before, 'message': 'Opened source page.'}
+    if action == 'view-review':
+        reviews.open_report(pid)
+        return {'plugins': before, 'message': 'Opened the latest review report.'}
     if action == 'remove':
         if not p['canRemove'] or not confirmed: raise ValueError('Uninstall requires confirmation and an installed third-party plugin.')
         run(['omarchy-plugin-remove', pid, '--yes'])
@@ -312,13 +317,20 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'review-update', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['list', 'position', 'sort', 'check-updates', 'update', 'review-update', 'review-status', 'view-review', 'reviewer-config', 'set-reviewer', 'set-reviewer-source', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
     parser.add_argument('--confirmed', action='store_true')
     a = parser.parse_args()
     try:
+        if a.action in ('reviewer-config', 'set-reviewer', 'set-reviewer-source'):
+            value = reviews.set_source(a.id) if a.action == 'set-reviewer-source' else reviews.set_reviewer(a.id) if a.action == 'set-reviewer' else reviews.reviewer_config()
+            print(json.dumps({'ok': True, 'config': value}))
+            return 0
+        if a.action == 'review-status':
+            print(json.dumps({'ok': True, 'reviews': reviews.statuses()}))
+            return 0
         if a.action == 'review-update':
             try:
                 return review_update(a.id)

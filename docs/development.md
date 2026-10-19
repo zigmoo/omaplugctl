@@ -28,11 +28,11 @@ For this project’s DIL development environment, the canonical checkout is `~/d
 | `Service.qml` | Persistent menu, configuration, controller calls and operation polling. |
 | `ScreenEdgePicker.qml` | Compact graphical control for the bar’s screen edge. |
 | `PluginRow.qml` | Plugin information and per-plugin actions. |
-| `controller.py` | Inventory, metadata, settings and validated Omarchy actions. |
-| `marketplace.py` | Bounded catalog download/cache, verification projection and native install/enable readback. |
+| `controller.php` | Inventory, metadata, settings and validated Omarchy actions. |
+| `marketplace.php` | Bounded catalog download/cache, verification projection and native install/enable readback. |
 | `InstallPanel.qml` | Third tab, local type-ahead search, catalog rows and explicit installation. |
-| `updates.py` | Git source resolution, update comparison, locking, backups and verified checkout changes. |
-| `malware.py` | Local ClamAV setup discovery, signature refresh and pinned-blob scans. |
+| `updates.php` | Git source resolution, update comparison, locking, backups and verified checkout changes. |
+| `malware.php` | Local ClamAV setup discovery, signature refresh and pinned-blob scans. |
 | `i18n/en.json` | Translated UI strings currently provided in English. |
 
 ## Why the menu belongs to the service
@@ -75,9 +75,17 @@ Verified results require the catalog's effective status, snapshot status and cov
 
 The UI fixture in `tests/InstallPanelTest.qml` exercises type-ahead, the verification filter, empty results, install/enable progress, source/refresh buttons, error preservation and literal markup. To run it, copy it as `shell.qml` and copy `tests/catalog_fixture.py` into a scratch directory; link `Commons` and `Ui` from Omarchy's shell and `InstallPanel.qml` and `i18n` from this checkout there. Run `QT_QPA_PLATFORM=wayland quickshell -p <scratch-directory>` and require `INSTALL UI FAIL COUNT 0`. The fixture changes only its scratch state. Full-service checks also verify third-tab navigation on the running shell.
 
+## Runtime and first use
+
+QML launches `php -n controller.php`. The PHP modules preserve the native command/readback API, repository protections, complete pinned-commit scans, Unicode case folding and metadata behavior. `runtime.php` owns direct argument-vector execution, deadlines and bounded output. `metadata.php` owns local descriptions and attribution. Four concurrent Git subprocesses implement grouped source checks without a PHP worker extension. `unicode-casefold.json` is static Unicode 16 data, not generated runtime code.
+
+`RuntimeCheck.qml` detects PHP 8.1+ and process support using Bash before invoking a PHP helper. Missing PHP exposes an explicit terminal install action, followed by a new runtime probe. No package install runs merely because the plugin is enabled. OmaThemeCtl carries its own identical component so either plugin works independently.
+
+The Python implementation remains a development reference. `test_php.py` invokes the actual PHP API through a test bridge, reuses the repository contract cases with real isolated Git repositories, and exercises native-command fixtures for persistence, failed readback, duplicate movement, removal, catalog install/enable and detached updates. Scanner adapters are fixtures; these checks do not certify the ClamAV engine.
+
 ## Verification
 
-Run the Python suite from the repository root with a writable test scratch directory:
+Run the Python reference and PHP contract suites from the repository root with a writable test scratch directory:
 
 ```bash
 test_root="${XDG_STATE_HOME:-$HOME/.local/state}/omaplugctl/tests"
@@ -106,9 +114,9 @@ Both controls save through `omarchy bar set --json`, verify the datasource, and 
 Run from the source checkout:
 
 ```bash
-python3 controller.py list
-python3 controller.py check-updates
-python3 controller.py update <plugin-id>
+php -n controller.php list
+php -n controller.php check-updates
+php -n controller.php update <plugin-id>
 ```
 
 The last command starts the same background update used by the menu. It changes the running plugin checkout; it is not a dry run.
@@ -124,3 +132,5 @@ The active version has no reviewer selection, dispatch, report polling or public
 [Bjarne Øverli’s Ring Light](https://github.com/bjarneo/omarchy-ring-light-plugin) is a reference for clear plugin presentation and concise onboarding. [Jason Fried’s Elsewhen](https://github.com/omacom/elsewhen) is the primary reference for nuanced UI, powerful interactions and precise explanations of design decisions. Elsewhen now lives inside Omarchy; its original repository retains the detailed design record.
 
 Study the actual interfaces and adapt what serves this plugin. In documentation, give each topic a clear home and keep the path from installation to everyday use short.
+
+Syntax-check each root PHP module with `php -n -l`. The PHP runtime needs no Python process. QtTest checks in `tests/RuntimeCheckTest.qml` exercise missing PHP, the explicit install action and successful reprobe using isolated command fixtures; they do not install system packages. Require zero failing checks. Test scratch must be new or its fixture state reset before repeated pointer tests.

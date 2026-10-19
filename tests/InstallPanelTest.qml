@@ -16,6 +16,7 @@ ShellRoot {
       id: testHost
       property bool busy: false
       property string helper: Qt.resolvedUrl("catalog_fixture.py").toString().replace(/^file:\/\//, "")
+      property var helperPrefix: ["python3"]
       property string themeFont: Style.font.family
       property bool closed: false
       function text(key) { return translations.t(key) }
@@ -53,8 +54,10 @@ ShellRoot {
         compare(panel.results.length, 1)
         compare(panel.results[0].id, "example.radio")
         verify(!panel.busy)
-        mouseClick(findChild(panel, "clearInstallSearchButton"))
+        mouseClick(findChild(panel.focusTarget, "clearSearchButton"))
         compare(panel.results.length, 2)
+        verify(panel.focusTarget.activeFocus)
+        verify(!findChild(panel.focusTarget,"clearSearchButton").visible)
       }
       function test_02_verified_filter_and_empty_search() {
         mouseClick(findChild(panel, "verifiedOnlyButton"))
@@ -124,6 +127,24 @@ ShellRoot {
         let status = findChild(panel, "installStatusText")
         verify(status.y + status.height <= panel.height + 1)
         grabImage(panel).save(Qt.resolvedUrl("install-test.png").toString().replace(/^file:\/\//, ""))
+      }
+      function test_07_oma_prefers_names_over_platform_descriptions() {
+        var original = panel.entries
+        try {
+          panel.entries = [
+            Object.assign({}, original[0], {id:"example.alpha",name:"Alpha",author:"Other",tags:[],searchText:"alpha omarchy rarekeyword"}),
+            Object.assign({}, original[0], {id:"example.omaz",name:"Oma Zulu",author:"Other",tags:[],searchText:"oma zulu omarchy"}),
+            Object.assign({}, original[0], {id:"example.omaa",name:"Oma Alpha",author:"Other",tags:[],searchText:"oma alpha omarchy"})
+          ]
+          typeText("Oma")
+          compare(panel.results.length,2)
+          compare(panel.results[0].name,"Oma Alpha")
+          compare(panel.results[1].name,"Oma Zulu")
+          verify(!panel.busy)
+          panel.focusTarget.text="rarekeyword"
+          compare(panel.results.length,1)
+          compare(panel.results[0].name,"Alpha")
+        } finally { panel.entries=original }
       }
       function cleanup() { console.log("INSTALL TEST", qtest_results.functionName, qtest_results.failed) }
       function cleanupTestCase() {

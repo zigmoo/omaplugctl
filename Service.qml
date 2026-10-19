@@ -31,7 +31,8 @@ Item {
   property bool iconSettingsLoaded: false
   property var workspaceSettings: null
   readonly property bool busy: controller.running || installPanel.busy
-  readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
+  readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.php").toString().replace(/^file:\/\//, ""))
+  readonly property var helperPrefix: ["php", "-n"]
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
 
   Commons.Translations { id: strings; directory: Qt.resolvedUrl("i18n") }
@@ -73,7 +74,7 @@ Item {
   function selectTab(name) {
     currentTab = name
     Qt.callLater(function() {
-      if (name === "install") installPanel.activate()
+      if (name === "install" && runtime.ready) installPanel.activate()
       else if (name === "config") configSortPicker.forceActiveFocus()
     })
   }
@@ -107,8 +108,8 @@ Item {
     function onShellValuesChanged() { Qt.callLater(root.applyBarIconScale) }
   }
   Process {
-    command: ["python3", root.helper, "settings"]
-    running: true
+    id: settingsReader
+    command: root.helperPrefix.concat([root.helper, "settings"])
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -171,12 +172,12 @@ Item {
     if (!busy && edge !== barPosition) invoke("position", edge)
   }
   function invoke(action, pluginId, section, source, index, confirmed) {
-    if (busy || (action !== "list" && action !== "check-updates" && !pluginId)) return
+    if (!runtime.ready || busy || (action !== "list" && action !== "check-updates" && !pluginId)) return
     pendingAction = action
     pendingId = action === "position" || action === "sort" || action === "check-updates" ? "" : (pluginId || "")
     pendingName = ""
     for (var i = 0; i < plugins.length; i++) if (plugins[i].id === pendingId) pendingName = plugins[i].name
-    var argv = ["python3", helper, action]
+    var argv = helperPrefix.concat([helper, action])
     if (action === "position") argv.push("--edge", pluginId)
     else if (action === "sort") argv.push(pluginId)
     else if (action !== "list" && action !== "check-updates") argv.push(pendingId)
@@ -198,12 +199,12 @@ Item {
     function sort(order: string): void { root.invoke("sort", order) }
     function tab(name: string): void { if (["plugins", "config", "install"].indexOf(name) !== -1) root.selectTab(name) }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, catalogLoaded: installPanel.loaded, catalogResults: installPanel.results.length, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, runtimeReady: runtime.ready, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, catalogLoaded: installPanel.loaded, catalogResults: installPanel.results.length, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
   }
   Process {
     id: updateStatusReader
-    command: ["python3", root.helper, "update-status"]
+    command: root.helperPrefix.concat([root.helper, "update-status"])
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
@@ -221,7 +222,7 @@ Item {
     interval: 2000
     repeat: true
     running: root.menuOpen
-    onTriggered: if (!updateStatusReader.running && !root.busy) updateStatusReader.running = true
+    onTriggered: if (runtime.ready && !updateStatusReader.running && !root.busy) updateStatusReader.running = true
   }
   Process {
     id: controller
@@ -256,13 +257,20 @@ Item {
     owner: root
     anchorItem: root.anchorItem
     open: root.menuOpen
-    focusTarget: root.currentTab === "install" ? installPanel.focusTarget : root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
+    focusTarget: !runtime.ready ? runtime : root.currentTab === "install" ? installPanel.focusTarget : root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
     contentWidth: fittedContentWidth(Style.space(420))
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
       id: frame
       anchors.fill: parent
       spacing: Style.space(14)
+      RuntimeCheck {
+        id: runtime
+        host: root
+        width: parent.width
+        visible: !ready
+        onAvailable: { if (!settingsReader.running) settingsReader.running = true; if (root.menuOpen) { root.refresh(); if (root.currentTab === "install") installPanel.activate() } }
+      }
       Row {
         id: tabs
         width: parent.width
@@ -296,7 +304,7 @@ Item {
         objectName: "managerConfigPanel"
         width: parent.width
         spacing: Style.space(14)
-        visible: root.currentTab === "config"
+        visible: runtime.ready && root.currentTab === "config"
         Text {
           width: parent.width
           text: strings.t("config.title")
@@ -435,12 +443,12 @@ Item {
         host: root
         width: parent.width
         height: Math.max(0, frame.height - tabs.height - frame.spacing)
-        visible: root.currentTab === "install"
+        visible: runtime.ready && root.currentTab === "install"
         onPluginsChanged: Qt.callLater(root.refresh)
       }
       Ui.PanelHero {
         id: hero
-        visible: root.currentTab === "plugins"
+        visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         title: "OmaPlugCtl"
         meta: root.plugins.length + " plugins · " + root.plugins.filter(function(p) { return p.enabled }).length + " enabled"
@@ -478,7 +486,7 @@ Item {
       }
       Row {
         id: barControls
-        visible: root.currentTab === "plugins"
+        visible: runtime.ready && root.currentTab === "plugins"
         objectName: "barPositionControls"
         width: parent.width
         spacing: Style.space(20)
@@ -529,10 +537,10 @@ Item {
           }
         }
       }
-      Ui.PanelSeparator { visible: root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
+      Ui.PanelSeparator { visible: runtime.ready && root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
       ListView {
         id: pluginList
-        visible: root.currentTab === "plugins"
+        visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)
         clip: true
@@ -565,7 +573,7 @@ Item {
       Text {
         id: status
         width: parent.width
-        visible: root.currentTab !== "install" && (root.message !== "" || root.currentTab === "plugins")
+        visible: runtime.ready && root.currentTab !== "install" && (root.message !== "" || root.currentTab === "plugins")
         text: root.message || "Scroll to see all plugins"
         color: root.failed ? Commons.Color.urgent : Qt.darker(Commons.Color.popups.text, 1.4)
         font.family: root.themeFont

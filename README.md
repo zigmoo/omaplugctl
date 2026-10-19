@@ -8,14 +8,16 @@ Click the plug icon in the bar to see what is running, move the bar to another s
 
 ## Install
 
-Requires Omarchy’s Quickshell shell and plugin commands, plus Git and Python 3.
+Requires Omarchy’s Quickshell shell and plugin commands, plus Git, curl and PHP 8.1 or newer. The runtime uses `php -n`, with no Composer packages, optional PHP extensions or build step. Python is retained for development checks and comparison only.
 
 Install ClamAV for local malware checks, then add the plugin:
 
 ```bash
-omarchy pkg add clamav
+omarchy pkg add php clamav
 omarchy plugin add https://github.com/zigmoo/omaplugctl.git --enable
 ```
+
+If PHP is missing, opening the menu shows **Install PHP**. It opens a terminal and runs `omarchy pkg add php`; any administrator-password prompt stays in that terminal. The menu verifies the CLI and retries after installation. A missing runtime never starts a background package installation.
 
 The plug icon appears in the bar’s right section. Open it to manage your installed bar plugins, including OmaPlugCtl itself.
 
@@ -74,13 +76,31 @@ A detection, scanner error or incomplete scan stops the update. A clean result m
 
 ## Install new plugins
 
-The third tab, **Install**, searches the [Omarchy marketplace](https://plugins.omarchy.org/). Type a name, description, author or tag; multiple words narrow the results together. **Verified only** is selected initially. Turn it off to include unverified listings and listings whose newer upstream update is unverified. Already installed plugins stay identifiable in the results.
+The × at the right edge of a nonempty search field clears the query and returns keyboard focus to the field.
+
+The third tab, **Install**, searches the [Omarchy marketplace](https://plugins.omarchy.org/). Type a name, description, author or tag; multiple words narrow the results together. Matching names, IDs, authors and tags take priority, with name prefixes first, so searching `Oma` finds Oma-named plugins instead of matching every generic Omarchy description. **Verified only** is selected initially. Turn it off to include unverified listings and listings whose newer upstream update is unverified. Already installed plugins stay identifiable in the results.
 
 The first visit downloads the catalog. Later visits reuse the saved copy and read the installed state again. Searching never contacts a server. **Refresh** downloads a new catalog; the displayed refresh time tells you how old the saved copy is. If a refresh fails, the saved results remain available with an explanatory message.
 
 **Source** opens the repository. **Install** uses Omarchy's native installer and leaves the plugin disabled. After Omarchy confirms installation, the button becomes **Enable**. Enabling is a separate action and is also confirmed against Omarchy's installed state. Plugins requiring manual setup have a disabled action; use Source for their instructions.
 
 Marketplace verification covers the listed commit. The native installer fetches current upstream code, which can have changed since that verification. The Install tab keeps snapshot and update verification distinct; it does not pin installations to a verified commit or apply the update-only ClamAV setting to new installs. The [marketplace verification guide](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md) describes the evidence and its limits.
+
+## PHP and Python measurements
+
+Measured on framemoowork with Python 3.14.8 (`-B`) and PHP 8.5.11 (`-n`), using warm, randomized interleaved samples and equivalent decoded outputs:
+
+| Work | Samples per runtime | Python median | PHP median | PHP latency reduction |
+| --- | ---: | ---: | ---: | ---: |
+| Startup and small JSON output | 25 | 18.77 ms | 10.20 ms | 46% |
+| Saved settings | 25 | 108.10 ms | 17.44 ms | 84% |
+| Complete installed-plugin list, 36 plugins | 9 | 810.61 ms | 568.89 ms | 30% |
+| Cached marketplace, 5,681 entries | 9 | 185.07 ms | 87.16 ms | 53% |
+| Source checks, 16 independent local Git repositories | 9 | 315.73 ms | 219.12 ms | 31% |
+
+The complete helper comparisons include implementation and import differences; these are not universal language rankings. The source-check comparison uses local bare remotes, four concurrent fetches in each implementation and equivalent results apart from timestamps. It measures repository work without internet latency. Neither helper runs per keystroke: QML filters the loaded catalog locally, so SQLite is not required for typeahead.
+
+To repeat the measurements with an explicit writable scratch directory, run `python3 tests/benchmark_helpers.py /path/to/scratch/helpers` and `python3 tests/benchmark_repositories.py /path/to/scratch/repos`. Refresh the marketplace in Install first. The first driver copies the existing caches into separate scratch state roots and reads native Omarchy state; the second creates isolated repositories and never applies updates. Both emit raw samples and parity checks.
 
 ## Commands
 

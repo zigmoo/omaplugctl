@@ -50,7 +50,10 @@
   "install.verifiedOnly": "Verified only",
   "install.refresh": "Refresh",
   "install.clear": "Clear",
-  "install.count": { "one": "%1 result", "other": "%1 results" },
+  "install.count": {
+    "one": "%1 result",
+    "other": "%1 results"
+  },
   "install.refreshed": "Refreshed %1",
   "install.help": "Install adds current upstream code, disabled. Verification covers the listed snapshot; enable separately when ready.",
   "install.source": "Source",
@@ -84,5 +87,12 @@
   "config.workspaceCount": "Minimum workspace buttons",
   "config.workspaceHelp": "Requires My Workspaces or another compatible workspace widget. Additional existing workspaces remain visible.",
   "config.workspaceUnsupported": "Enable My Workspaces in Plugins to use this control. Stock Workspaces does not support a minimum button count.",
-  "config.workspaceSaving": "Saving workspace count…"
+  "config.workspaceSaving": "Saving workspace count…",
+  "runtime.required": "PHP 8.1 or newer is required to use this plugin.",
+  "runtime.checking": "Checking PHP…",
+  "runtime.install": "Install PHP",
+  "runtime.retry": "Check again",
+  "runtime.installHelp": "Opens a terminal to install PHP from the Arch repositories. Enter your administrator password there if asked. This menu retries when installation finishes.",
+  "runtime.launchFailed": "Could not open the installer. Run omarchy pkg add php in a terminal, then click Check again.",
+  "search.clear": "Clear search"
 }

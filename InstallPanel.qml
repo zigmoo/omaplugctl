@@ -22,9 +22,23 @@ Column {
   readonly property Item focusTarget: search
   readonly property var results: {
     var terms = search.text.toLowerCase().trim().split(/\s+/).filter(function(term) { return term !== "" })
-    return entries.filter(function(entry) {
-      return (!root.verifiedOnly || entry.verified) && terms.every(function(term) { return entry.searchText.indexOf(term) !== -1 })
+    var eligible = entries.filter(function(entry) { return !root.verifiedOnly || entry.verified })
+    if (!terms.length) return eligible
+    // Platform descriptions say "Omarchy" on nearly every entry. Prefer the
+    // identity fields so "Oma" surfaces Oma-named plugins immediately.
+    var direct = eligible.filter(function(entry) {
+      var identity = [entry.name, entry.id, entry.author, entry.category || ""].concat(entry.tags || []).join(" ").toLowerCase()
+      return terms.every(function(term) { return identity.indexOf(term) !== -1 })
     })
+    var matches = direct.length ? direct : eligible.filter(function(entry) {
+      return terms.every(function(term) { return entry.searchText.toLowerCase().indexOf(term) !== -1 })
+    })
+    var phrase = terms.join(" ")
+    function rank(entry) {
+      var name = entry.name.toLowerCase()
+      return name.indexOf(phrase) === 0 ? 0 : name.indexOf(phrase) !== -1 ? 1 : 2
+    }
+    return matches.sort(function(a, b) { return rank(a) - rank(b) || a.name.toLowerCase().localeCompare(b.name.toLowerCase()) })
   }
   signal pluginsChanged()
   spacing: Style.space(8)
@@ -36,7 +50,7 @@ Column {
     pendingId = pid || ""
     failed = false
     message = host.text(operation === "catalog-install" ? "install.installing" : operation === "catalog-enable" ? "install.enabling" : operation === "catalog-source" ? "install.opening" : "install.loading")
-    var argv = ["python3", host.helper, operation]
+    var argv = host.helperPrefix.concat([host.helper, operation])
     if (pid) argv.push(pid)
     if (refresh) argv.push("--refresh")
     process.command = argv
@@ -49,7 +63,7 @@ Column {
     invoke("catalog", "", false)
     Qt.callLater(function() { if (root.visible) search.forceActiveFocus() })
   }
-  onVisibleChanged: if (visible) activate()
+  onVisibleChanged: if (visible) Qt.callLater(root.activate)
   Connections {
     target: root.host
     function onBusyChanged() { if (!root.host.busy && root.visible && root.needsLoad) root.activate() }
@@ -79,8 +93,9 @@ Column {
     }
   }
 
-  Ui.TextField {
+  SearchField {
     id: search
+    clearLabel: root.host.text("search.clear")
     objectName: "installSearchField"
     width: parent.width
     placeholderText: root.host.text("install.search")
@@ -117,15 +132,7 @@ Column {
       enabled: !root.busy && !root.host.busy
       onClicked: root.invoke("catalog", "", true)
     }
-    Ui.Button {
-      objectName: "clearInstallSearchButton"
-      text: root.host.text("install.clear")
-      foreground: Commons.Color.popups.text
-      fontFamily: root.host.themeFont
-      focusable: true
-      visible: search.text !== ""
-      onClicked: { search.clear(); search.forceActiveFocus() }
-    }
+
   }
   Text {
     id: summary

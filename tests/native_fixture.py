@@ -45,8 +45,13 @@ elif name in ('omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin
                 if plugin['id'] == args[0]:
                     plugin['enabled'] = name.endswith('enable')
 elif name == 'omarchy' and args[:2] == ['bar', 'position']:
+    if len(args) == 2 and state.get('legacyPosition'):
+        print('omarchy-bar: position is required', file=sys.stderr); sys.exit(1)
+    if len(args) == 2 and state.get('positionError'):
+        print('Could not read shell configuration', file=sys.stderr); sys.exit(1)
     if len(args) > 2 and not state.get('ignoreWrites'):
         state['position'] = args[2]
+        config['bar']['position'] = args[2]
     print(state['position'])
 elif name == 'omarchy' and args[:2] == ['bar', 'set']:
     if not state.get('ignoreWrites'):

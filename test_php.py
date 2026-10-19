@@ -248,6 +248,20 @@ class PhpNativeStateTests(unittest.TestCase):
         self.assertTrue(self.invoke('set-scan', 'true')['scanBeforeUpdate'])
         self.assertEqual(self.invoke('position', '--edge', 'left')['barPosition'], 'left')
 
+    def test_legacy_bar_position_reads_saved_state_and_confirms_writes(self):
+        state = json.loads(self.native_path.read_text()); state['legacyPosition'] = True
+        self.native_path.write_text(json.dumps(state))
+        config = json.loads(self.config_path.read_text()); config['bar']['position'] = 'bottom'
+        self.config_path.write_text(json.dumps(config))
+        self.assertEqual(self.invoke('list')['barPosition'], 'bottom')
+        self.assertEqual(self.invoke('position', '--edge', 'left')['barPosition'], 'left')
+        config = json.loads(self.config_path.read_text()); config['bar']['position'] = 'invalid'
+        self.config_path.write_text(json.dumps(config))
+        self.assertFalse(self.invoke('list')['ok'])
+        state['legacyPosition'] = False; state['positionError'] = True
+        self.native_path.write_text(json.dumps(state))
+        self.assertFalse(self.invoke('list')['ok'])
+
     def test_failed_setting_readback_is_an_error(self):
         state = json.loads(self.native_path.read_text()); state['ignoreWrites'] = True
         self.native_path.write_text(json.dumps(state))

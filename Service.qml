@@ -262,6 +262,7 @@ Item {
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
       id: frame
+      objectName: "managerFrame"
       anchors.fill: parent
       spacing: Style.space(14)
       RuntimeCheck {
@@ -540,6 +541,7 @@ Item {
       Ui.PanelSeparator { visible: runtime.ready && root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
       ListView {
         id: pluginList
+        objectName: "managerPluginsList"
         visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)

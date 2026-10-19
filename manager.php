@@ -53,7 +53,16 @@ function set_sort(?string $value): array {
     run(['omarchy','bar','set',SELF,'sortOrder',$value]);if(configured_sort()!==$value)throw new \RuntimeException('The selected sort order was not confirmed.');
     return ['plugins'=>inventory(),'message'=>''];
 }
-function bar_position(): string {$value=run(['omarchy','bar','position']);if(!in_array($value,EDGES,true))throw new \RuntimeException('Could not read the current bar position.');return $value;}
+function bar_position(): string {
+    try {$value=run(['omarchy','bar','position']);}
+    catch (\RuntimeException $error) {
+        // Omarchy 4.0.5 supports writes only; read the same persisted setting.
+        if (trim($error->getMessage())!=='omarchy-bar: position is required') throw $error;
+        $value=config()['bar']['position']??null;
+    }
+    if(!is_string($value)||!in_array($value,EDGES,true))throw new \RuntimeException('Could not read the current bar position.');
+    return $value;
+}
 function set_bar_position(?string $edge): array {
     if(!in_array($edge,EDGES,true))throw new \InvalidArgumentException('Choose top, bottom, left, or right.');
     run(['omarchy','bar','position',$edge]);$position=bar_position();if($position!==$edge)throw new \RuntimeException('New bar position was not confirmed. Try Refresh.');

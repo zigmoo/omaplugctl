@@ -4,13 +4,15 @@ Find, install, enable, arrange and update Omarchy plugins from one menu.
 
 Click the plug icon in the bar to see what is running, move the bar to another screen edge, or update an installed plugin without leaving the menu.
 
-<img src="docs/assets/plugins.png" alt="Plugins tab with Elsewhen hovered, showing its world-clock description, local update date and Jason Fried attribution" width="420">
+<img src="docs/assets/plugins.png" alt="Plugins tab with OmaThemeCtl hovered, showing its Description for Agents, local update date and Jason Ziegler attribution" width="420">
 
-Hover a plugin row for its description and provenance. The Elsewhen hover capture above shows its world-clock features, local update date and author.
+Hover a plugin row for its description and provenance. The capture above features [OmaThemeCtl](https://github.com/zigmoo/omathemectl): its Description for Agents supplies the preview, followed by its local update date and author.
 
 ## Install
 
-Requires Omarchy’s Quickshell shell and plugin commands, plus Git, curl and PHP 8.1 or newer. The runtime uses `php -n`, with no Composer packages, optional PHP extensions or build step. Python is retained for development checks and comparison only.
+Requires Omarchy’s Quickshell shell with `Commons.Translations` and plugin commands, plus Git, curl and PHP 8.1 or newer. The runtime uses `php -n`, with no Composer packages, optional PHP extensions or build step. Python is retained for development checks and comparison only.
+
+The shell must provide `Commons.Translations`, available in the current Omarchy development shell. Packaged Omarchy 4.0.5 does not include that API.
 
 Install ClamAV for local malware checks, then add the plugin:
 

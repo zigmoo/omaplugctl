@@ -152,7 +152,7 @@ Item {
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
-          iconText: root.plugin.enabled ? "󰐥" : "󰐊"
+          iconText: root.plugin.enabled ? "󰏤" : "󰐊"
           tooltipText: root.plugin.isSelf ? root.host.text("updates.controllerProtected") : (root.plugin.enabled ? "Disable " : "Enable ") + root.plugin.name
           fontFamily: root.host.themeFont
           foreground: root.ink

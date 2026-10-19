@@ -25,7 +25,7 @@ Each row shows a plugin’s name, bar position and update status. Hover the row 
 
 | Control | Action |
 | --- | --- |
-| Power or play | Disable or enable the plugin. |
+| Pause or play | Disable or enable the plugin. |
 | Update arrows | Update this plugin when a source update is available. Hover for the latest change date and up to three commit subjects. |
 | Information | Open the plugin’s source page. |
 | Three dots | Move an instance to another bar section, or uninstall an installed third-party plugin. |

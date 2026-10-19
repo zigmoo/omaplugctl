@@ -1,24 +1,18 @@
 --- a/Workspaces.qml
 +++ b/Workspaces.qml
-@@ -18,12 +18,15 @@
-   }
- 
+@@ -80,7 +80,10 @@
+   // unplugged, which had no room to join this one's.
    function workspaceIds() {
--    var ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-+    var configured = Number(root.setting("pinnedCount", 9))
-+    var count = isFinite(configured) ? Math.max(0, Math.min(10, Math.floor(configured))) : 9
+     var base = root.block * root.slots
+-    var ids = [base + 1, base + 2, base + 3, base + 4, base + 5]
++    var configured = Number(root.setting("pinnedCount", 10))
++    var count = isFinite(configured) ? Math.max(0, Math.min(root.slots, Math.floor(configured))) : 10
 +    var ids = []
-+    for (var slot = 1; slot <= count; slot++) ids.push(slot)
++    for (var slot = 1; slot <= count; slot++) ids.push(base + slot)
+     var guests = []
      var values = Hyprland.workspaces.values
  
-     for (var i = 0; i < values.length; i++) {
-       var id = values[i].id
--      if (id > 0 && id <= 10 && ids.indexOf(id) === -1) ids.push(id)
-+      if (id > 0 && ids.indexOf(id) === -1) ids.push(id)
-     }
- 
-     ids.sort(function(left, right) { return left - right })
-@@ -44,7 +47,7 @@
+@@ -248,7 +251,7 @@
      id: grid
      anchors.fill: parent
      anchors.rightMargin: root.trailingGap
@@ -34,25 +28,25 @@
    "id": "moo.workspaces",
    "name": "My Workspaces",
 -  "version": "1.0.0",
-+  "version": "1.0.1",
++  "version": "1.1.0",
    "author": "Omarchy",
    "description": "Workspace number indicators",
    "kinds": [
-@@ -15,7 +15,21 @@
+@@ -15,9 +15,26 @@
      "displayName": "My Workspaces",
      "description": "Workspace number indicators",
      "category": "Compositor",
 -    "allowMultiple": false
 +    "allowMultiple": false,
 +    "defaults": {
-+      "pinnedCount": 9
++      "pinnedCount": 10
 +    },
 +    "schema": [
 +      {
 +        "key": "pinnedCount",
 +        "type": "integer",
 +        "label": "Minimum workspace buttons",
-+        "defaultValue": 9,
++        "defaultValue": 10,
 +        "min": 0,
 +        "max": 10,
 +        "step": 1
@@ -60,4 +54,11 @@
 +    ]
    },
    "omarchy": {
-     "clonedFrom": "omarchy.workspaces"
+-    "clonedFrom": "omarchy.workspaces"
+-  }
++    "clonedFrom": "omarchy.workspaces",
++    "clonedAtCommit": "81fd2d23ca6e3462183a4dc8360de3113fa8d80c",
++    "customizedBy": "Jason Ziegler"
++  },
++  "homepage": "https://github.com/omacom/omarchy/blob/81fd2d23ca6e3462183a4dc8360de3113fa8d80c/shell/plugins/bar/widgets/Workspaces.qml"
+ }

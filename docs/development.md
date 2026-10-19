@@ -29,6 +29,8 @@ For this project’s DIL development environment, the canonical checkout is `~/d
 | `ScreenEdgePicker.qml` | Compact graphical control for the bar’s screen edge. |
 | `PluginRow.qml` | Plugin information and per-plugin actions. |
 | `controller.py` | Inventory, metadata, settings and validated Omarchy actions. |
+| `marketplace.py` | Bounded catalog download/cache, verification projection and native install/enable readback. |
+| `InstallPanel.qml` | Third tab, local type-ahead search, catalog rows and explicit installation. |
 | `updates.py` | Git source resolution, update comparison, locking, backups and verified checkout changes. |
 | `malware.py` | Local ClamAV setup discovery, signature refresh and pinned-blob scans. |
 | `i18n/en.json` | Translated UI strings currently provided in English. |
@@ -62,6 +64,16 @@ Meaningful manifest authors take precedence. Missing or generic Omarchy attribut
 The author cache is keyed by repository, HEAD and candidate paths. Description hovers read cached/local data. About prefers explicit local source URLs or the checkout’s Git origin before consulting the marketplace.
 
 Repository names, descriptions, commit subjects and errors must render as plain text. Data-changing controls show their final state only after it has been saved and read back.
+
+An untracked clone with generic attribution falls back to the matching built-in's history, identified by `omarchy.clonedFrom`. The footer labels that author/creation commit as upstream. Optional `omarchy.clonedAtCommit` (a full SHA) records the source revision actually copied; `omarchy.customizedBy` credits the local customization independently. Meaningful local author attribution still takes precedence.
+
+## Marketplace integration
+
+The only catalog source is `https://plugins.omarchy.org/catalog.json`. A download is bounded to 32 MiB, 10,000 records and a 25-second socket timeout; strings and arrays are reduced to bounded display/search fields before atomic caching under the user's XDG state directory. Invalid/oversized responses never replace a working cache. A failed refresh returns the saved catalog and its original timestamp with a warning. No startup polling, search requests, engagement tracking or image requests occur.
+
+Verified results require the catalog's effective status, snapshot status and coverage to agree, with the verification, listed and observed upstream SHA equal. Update-unverified entries keep their own state. Native install is **not** verification-bound: `omarchy plugin add <validated-HTTPS-repo> --yes` installs current upstream without enabling it. Catalog command strings are ignored. Only supported GitHub repository URLs and root-plugin layouts expose an install action. Installation is serialized, duplicate IDs are rejected, and installed/enabled state comes from `omarchy-plugin-list --json` after the action. A missing expected ID or failed readback is an error.
+
+The UI fixture in `tests/InstallPanelTest.qml` exercises type-ahead, the verification filter, empty results, install/enable progress, source/refresh buttons, error preservation and literal markup. To run it, copy it as `shell.qml` and copy `tests/catalog_fixture.py` into a scratch directory; link `Commons` and `Ui` from Omarchy's shell and `InstallPanel.qml` and `i18n` from this checkout there. Run `QT_QPA_PLATFORM=wayland quickshell -p <scratch-directory>` and require `INSTALL UI FAIL COUNT 0`. The fixture changes only its scratch state. Full-service checks also verify third-tab navigation on the running shell.
 
 ## Verification
 

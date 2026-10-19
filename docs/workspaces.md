@@ -10,6 +10,8 @@ OmaPlugCtl enables the control only when exactly one active workspace widget adv
 
 ## This machine’s clone
 
-The installed `moo.workspaces` clone now reads `setting("pinnedCount", 9)`. Its default stays at nine, matching its previous appearance. Positive existing workspace IDs are included regardless of the minimum. Its manifest exposes the integer setting.
+The installed `moo.workspaces` clone reads `setting("pinnedCount", 10)`. Its default and the current saved minimum are ten. It follows the current monitor-aware built-in: each monitor has a block of ten workspace IDs, the requested minimum reserves slots in that block, existing workspaces remain visible, and visiting workspaces retain the built-in behavior. Its manifest exposes the integer setting. Zero is supported without assigning a zero-column layout.
 
-The exact customization is preserved in [workspace-count.patch](../integrations/workspace-count.patch). It targets this older clone and is not a general patch for newer Omarchy widgets. OmaPlugCtl never patches another widget automatically. Integrate the setting into a user-owned clone rather than changing packaged Omarchy sources.
+The exact customization is preserved in [workspace-count.patch](../integrations/workspace-count.patch), based on Omarchy source commit `81fd2d23ca6e3462183a4dc8360de3113fa8d80c`. The manifest records that source revision and credits Jason Ziegler's local customization separately from upstream authorship. OmaPlugCtl's hover metadata traces the upstream widget's original author/commit when the clone has no Git history. Source opens the copied upstream revision.
+
+The stock widget can replace the clone after a layout change or reset. A `pinnedCount` value on the stock widget has no effect: it does not implement the setting. Enable the supported clone to restore the control. OmaPlugCtl never patches another widget automatically. Integrate the setting into a user-owned clone rather than changing packaged Omarchy sources.

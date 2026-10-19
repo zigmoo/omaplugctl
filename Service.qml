@@ -24,12 +24,13 @@ Item {
   property string barPosition: ""
   property string sortOrder: "screen"
   property string currentTab: "plugins"
+  property bool refreshPending: false
   property bool scanBeforeUpdate: true
   property string scannerStatus: ""
   property int barIconScale: 100
   property bool iconSettingsLoaded: false
   property var workspaceSettings: null
-  readonly property bool busy: controller.running
+  readonly property bool busy: controller.running || installPanel.busy
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
 
@@ -37,8 +38,11 @@ Item {
   readonly property string noDescriptionText: strings.t("plugin.noDescription")
   function pluginFooter(plugin) {
     var date = plugin.updatedDate ? strings.t("plugin.updatedLocal").arg(plugin.updatedDate) : strings.t("plugin.updateUnknown")
-    var author = plugin.author ? (plugin.authorSource === "first-commit" ? strings.t(plugin.authorHistoryShallow ? "plugin.authorShallow" : "plugin.authorFirstCommit").arg(plugin.author).arg((plugin.authorCommit || "").slice(0, 8)) : plugin.author) : strings.t("plugin.authorUnknown")
-    return strings.t(plugin.firstParty && !plugin.clonedFrom ? "plugin.footerDefault" : "plugin.footer").arg(date).arg(author)
+    var author = plugin.author ? (["first-commit", "upstream-first-commit"].indexOf(plugin.authorSource) !== -1 ? strings.t(plugin.authorSource === "upstream-first-commit" ? (plugin.authorHistoryShallow ? "plugin.upstreamAuthorShallow" : "plugin.upstreamAuthor") : plugin.authorHistoryShallow ? "plugin.authorShallow" : "plugin.authorFirstCommit").arg(plugin.author).arg((plugin.authorCommit || "").slice(0, 8)) : plugin.author) : strings.t("plugin.authorUnknown")
+    var footer = strings.t(plugin.firstParty && !plugin.clonedFrom ? "plugin.footerDefault" : "plugin.footer").arg(date).arg(author)
+    if (plugin.sourceCommit) footer += "\n" + strings.t("plugin.sourceCommit").arg(plugin.sourceCommit.slice(0, 12))
+    if (plugin.customizedBy) footer += "\n" + strings.t("plugin.customizedBy").arg(plugin.customizedBy)
+    return footer
   }
   function updateLabel(plugin) {
     var update = plugin.update || {}
@@ -65,6 +69,14 @@ Item {
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }
   function text(key) { return strings.t(key) }
+  function countText(key, count) { return strings.tn(key, count) }
+  function selectTab(name) {
+    currentTab = name
+    Qt.callLater(function() {
+      if (name === "install") installPanel.activate()
+      else if (name === "config") configSortPicker.forceActiveFocus()
+    })
+  }
 
   function applyBarIconScale() {
     var values = Object.assign({}, Commons.Color.shellValues)
@@ -149,7 +161,12 @@ Item {
     if (anchorItem && bar) showFor(anchorItem, bar)
     else if (widgetAnchors.length) showFor(widgetAnchors[0].item, widgetAnchors[0].bar)
   }
-  function refresh() { invoke("list", "") }
+  function refresh() {
+    if (busy) { refreshPending = true; return }
+    refreshPending = false
+    invoke("list", "")
+  }
+  onBusyChanged: if (!busy && refreshPending) Qt.callLater(root.refresh)
   function moveBar(edge) {
     if (!busy && edge !== barPosition) invoke("position", edge)
   }
@@ -179,9 +196,9 @@ Item {
     function hide(): void { root.close() }
     function position(edge: string): void { root.moveBar(edge) }
     function sort(order: string): void { root.invoke("sort", order) }
-    function tab(name: string): void { if (name === "plugins" || name === "config") root.currentTab = name }
+    function tab(name: string): void { if (["plugins", "config", "install"].indexOf(name) !== -1) root.selectTab(name) }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, catalogLoaded: installPanel.loaded, catalogResults: installPanel.results.length, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
   }
   Process {
@@ -239,7 +256,7 @@ Item {
     owner: root
     anchorItem: root.anchorItem
     open: root.menuOpen
-    focusTarget: root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
+    focusTarget: root.currentTab === "install" ? installPanel.focusTarget : root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
     contentWidth: fittedContentWidth(Style.space(420))
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
@@ -256,7 +273,7 @@ Item {
           foreground: root.currentTab === "plugins" ? Commons.Color.accent : Commons.Color.popups.text
           fontFamily: root.themeFont
           focusable: true
-          onClicked: root.currentTab = "plugins"
+          onClicked: root.selectTab("plugins")
         }
         Ui.Button {
           objectName: "configTabButton"
@@ -264,7 +281,15 @@ Item {
           foreground: root.currentTab === "config" ? Commons.Color.accent : Commons.Color.popups.text
           fontFamily: root.themeFont
           focusable: true
-          onClicked: root.currentTab = "config"
+          onClicked: root.selectTab("config")
+        }
+        Ui.Button {
+          objectName: "installTabButton"
+          text: strings.t("tabs.install")
+          foreground: root.currentTab === "install" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.selectTab("install")
         }
       }
       Column {
@@ -312,12 +337,24 @@ Item {
           }
         }
         Column {
+          id: workspaceControls
           width: parent.width
           spacing: Style.space(6)
+          HoverHandler { id: workspaceHover }
+          Ui.PanelToolTip {
+            objectName: "workspaceRequirementTooltip"
+            visible: workspaceHover.hovered
+            text: strings.t(root.workspaceSettings ? "config.workspaceHelp" : "config.workspaceUnsupported")
+            fontFamily: root.themeFont
+            width: Math.min(workspaceControls.width, Style.space(360))
+            y: workspaceCountControl.height + Style.space(4)
+          }
           Ui.NumberField {
             id: workspaceCountControl
             objectName: "workspaceCountControl"
             label: strings.t("config.workspaceCount")
+            Accessible.name: strings.t("config.workspaceCount")
+            Accessible.description: strings.t(root.workspaceSettings ? "config.workspaceHelp" : "config.workspaceUnsupported")
             value: root.workspaceSettings ? root.workspaceSettings.count : 0
             from: 0
             to: 10
@@ -391,6 +428,15 @@ Item {
           font.family: root.themeFont
           font.pixelSize: Style.font.caption
         }
+      }
+      InstallPanel {
+        id: installPanel
+        objectName: "managerInstallPanel"
+        host: root
+        width: parent.width
+        height: Math.max(0, frame.height - tabs.height - frame.spacing)
+        visible: root.currentTab === "install"
+        onPluginsChanged: Qt.callLater(root.refresh)
       }
       Ui.PanelHero {
         id: hero
@@ -519,7 +565,7 @@ Item {
       Text {
         id: status
         width: parent.width
-        visible: root.message !== "" || root.currentTab === "plugins"
+        visible: root.currentTab !== "install" && (root.message !== "" || root.currentTab === "plugins")
         text: root.message || "Scroll to see all plugins"
         color: root.failed ? Commons.Color.urgent : Qt.darker(Commons.Color.popups.text, 1.4)
         font.family: root.themeFont

@@ -3,6 +3,7 @@
 import argparse, datetime, json, os, pathlib, re, stat, subprocess, sys, time, urllib.request, fcntl
 import updates
 import malware
+import marketplace
 SELF = 'moo.omaplugctl'
 SECTIONS = ('left', 'centerBegin', 'center', 'centerEnd', 'right', 'tray')
 EDGES = ('top', 'bottom', 'left', 'right')
@@ -156,6 +157,20 @@ def builtin_about_url(pid):
             return base + '/' + kind + '/HEAD/' + source.relative_to(root).as_posix()
     return base
 
+
+def builtin_metadata(pid):
+    if not isinstance(pid, str) or not re.fullmatch(r'omarchy\.[A-Za-z0-9._-]+', pid):
+        return {}
+    root = pathlib.Path(os.environ.get('OMARCHY_PATH') or pathlib.Path.home()/'.local/share/omarchy')
+    for path in (root/'shell/plugins').rglob('*manifest.json'):
+        try:
+            manifest = json.loads(path.read_text())
+        except (OSError, ValueError):
+            continue
+        if isinstance(manifest, dict) and manifest.get('id') == pid:
+            return {**manifest, 'sourceDir': str(path.parent), 'manifestPath': str(path)}
+    return {}
+
 def run(argv):
     p = subprocess.run(argv, capture_output=True, text=True, timeout=25)
     if p.returncode:
@@ -287,8 +302,22 @@ def plugin_details(metadata, history_cache=None):
     updated = local_update_date(pathlib.Path(path), manifest) if isinstance(path, str) and manifest else ''
     author = plugin_author(manifest)
     result = {'author': author, 'updatedDate': updated}
+    provenance = manifest.get('omarchy') or {}
+    provenance = provenance if isinstance(provenance, dict) else {}
+    source_commit = provenance.get('clonedAtCommit', '')
+    if isinstance(source_commit, str) and re.fullmatch(r'[0-9a-f]{40}', source_commit):
+        result['sourceCommit'] = source_commit
+    customized = provenance.get('customizedBy')
+    if isinstance(customized, str) and customized.strip():
+        result['customizedBy'] = ' '.join(customized.split())[:200]
     if not author or author.casefold() in ('omarchy', 'omarchy team', 'omacom'):
-        inferred = first_commit_author(metadata, history_cache if history_cache is not None else author_cache())
+        cache = history_cache if history_cache is not None else author_cache()
+        inferred = first_commit_author(metadata, cache)
+        if not inferred and provenance.get('clonedFrom'):
+            original = builtin_metadata(provenance['clonedFrom'])
+            inferred = first_commit_author(original, cache) if original else {}
+            if inferred:
+                inferred = {**inferred, 'authorSource': 'upstream-first-commit'}
         if inferred:
             result.update(inferred)
     return result
@@ -510,13 +539,21 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['catalog', 'catalog-install', 'catalog-enable', 'catalog-source', 'list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
     parser.add_argument('--confirmed', action='store_true')
+    parser.add_argument('--refresh', action='store_true')
     a = parser.parse_args()
     try:
+        if a.action.startswith('catalog'):
+            if a.action == 'catalog': data = marketplace.state(a.refresh)
+            elif a.action == 'catalog-install': data = marketplace.install(a.id)
+            elif a.action == 'catalog-enable': data = marketplace.enable(a.id)
+            else: data = marketplace.source(a.id)
+            print(json.dumps({'ok': True, **data}))
+            return 0
         if a.action == 'settings':
             print(json.dumps({'ok': True, 'barIconScale': configured_bar_icon_scale()}))
             return 0

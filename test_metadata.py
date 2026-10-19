@@ -155,6 +155,30 @@ class AuthorHistoryTests(unittest.TestCase):
         self.assertTrue(value['authorHistoryShallow'])
         self.assertEqual(value['author'], 'Later Maintainer')
 
+    def test_untracked_clone_credits_upstream_history_and_local_customization(self):
+        clone = pathlib.Path(self.temp.name) / 'local-clone'
+        clone.mkdir()
+        (clone / 'manifest.json').write_text(json.dumps({'author': 'Omarchy', 'omarchy': {
+            'clonedFrom': 'omarchy.workspaces', 'clonedAtCommit': 'b' * 40,
+            'customizedBy': 'Local Maintainer'}}))
+        metadata = {'sourceDir': str(clone), 'manifestPath': str(clone / 'manifest.json')}
+        with patch.object(controller, 'builtin_metadata', return_value=self.metadata):
+            value = controller.plugin_details(metadata, {})
+        self.assertEqual(value['author'], 'Original Author')
+        self.assertEqual(value['authorSource'], 'upstream-first-commit')
+        self.assertEqual(value['authorCommit'], self.original)
+        self.assertEqual(value['sourceCommit'], 'b' * 40)
+        self.assertEqual(value['customizedBy'], 'Local Maintainer')
+
+    def test_clone_without_original_history_does_not_invent_authorship(self):
+        (self.root / 'manifest.json').write_text(json.dumps({'author': 'Omarchy', 'omarchy': {
+            'clonedFrom': 'omarchy.missing', 'clonedAtCommit': 'not-a-commit'}}))
+        with patch.object(controller, 'first_commit_author', return_value={}), patch.object(controller, 'builtin_metadata', return_value={}):
+            value = controller.plugin_details(self.metadata, {})
+        self.assertEqual(value['author'], 'Omarchy')
+        self.assertNotIn('sourceCommit', value)
+        self.assertNotIn('authorCommit', value)
+
 
 if __name__ == '__main__':
     unittest.main()

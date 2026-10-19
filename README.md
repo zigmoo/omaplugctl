@@ -1,6 +1,6 @@
 # OmaPlugCtl
 
-Enable, arrange and update Omarchy bar plugins from one menu.
+Find, install, enable, arrange and update Omarchy plugins from one menu.
 
 Click the plug icon in the bar to see what is running, move the bar to another screen edge, or update an installed plugin without leaving the menu.
 
@@ -72,12 +72,23 @@ ClamAV checks the fetched source locally before an update changes the checkout. 
 
 A detection, scanner error or incomplete scan stops the update. A clean result means **no threats detected**, not proof of safety. Turning the toggle off explicitly skips scanning for subsequent updates.
 
+## Install new plugins
+
+The third tab, **Install**, searches the [Omarchy marketplace](https://plugins.omarchy.org/). Type a name, description, author or tag; multiple words narrow the results together. **Verified only** is selected initially. Turn it off to include unverified listings and listings whose newer upstream update is unverified. Already installed plugins stay identifiable in the results.
+
+The first visit downloads the catalog. Later visits reuse the saved copy and read the installed state again. Searching never contacts a server. **Refresh** downloads a new catalog; the displayed refresh time tells you how old the saved copy is. If a refresh fails, the saved results remain available with an explanatory message.
+
+**Source** opens the repository. **Install** uses Omarchy's native installer and leaves the plugin disabled. After Omarchy confirms installation, the button becomes **Enable**. Enabling is a separate action and is also confirmed against Omarchy's installed state. Plugins requiring manual setup have a disabled action; use Source for their instructions.
+
+Marketplace verification covers the listed commit. The native installer fetches current upstream code, which can have changed since that verification. The Install tab keeps snapshot and update verification distinct; it does not pin installations to a verified commit or apply the update-only ClamAV setting to new installs. The [marketplace verification guide](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md) describes the evidence and its limits.
+
 ## Commands
 
 ```bash
 omarchy-shell moo.omaplugctl show
 omarchy-shell moo.omaplugctl hide
 omarchy-shell moo.omaplugctl status
+omarchy-shell moo.omaplugctl tab install
 ```
 
 To remove OmaPlugCtl itself:
@@ -88,7 +99,7 @@ omarchy plugin remove moo.omaplugctl
 
 ## Description for Agents
 
-OmaPlugCtl manages Omarchy bar plugins (in the super-k menu it's called the 'top bar') from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes. Adjust bar icon size and, with a supported workspace widget, the minimum workspace button count in Config.
+OmaPlugCtl manages Omarchy bar plugins (in the super-k menu it's called the 'top bar') from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date, including upstream provenance for local clones. The Install tab searches the saved marketplace catalog as you type, defaults to verified listings, and installs plugins disabled with a separate Enable action. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes. Adjust bar icon size and, with a supported workspace widget, the minimum workspace button count in Config.
 
 ## Development
 

@@ -21,7 +21,7 @@ def scan_before_update():
 def set_scan_before_update(value):
     if value not in ('true', 'false'):
         raise ValueError('Choose whether to scan updates before installation.')
-    run(['omarchy', 'bar', 'set', SELF, 'scanBeforeUpdate', value])
+    run(['omarchy', 'bar', 'set', SELF, 'scanBeforeUpdate', value, '--json'])
     if scan_before_update() != (value == 'true'):
         raise RuntimeError('The malware scan preference was not confirmed.')
     return {'plugins': inventory(), 'message': 'Malware scan preference saved.'}

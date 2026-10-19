@@ -295,6 +295,8 @@ Item {
           Row {
             spacing: Style.space(4)
             Ui.Button {
+              objectName: "checkUpdatesButton"
+              anchors.verticalCenter: parent.verticalCenter
               text: strings.t("updates.check")
               fontFamily: root.themeFont
               foreground: Commons.Color.popups.text
@@ -303,6 +305,8 @@ Item {
               onClicked: root.invoke("check-updates", "")
             }
             Ui.PanelActionButton {
+              objectName: "refreshPluginsButton"
+              anchors.verticalCenter: parent.verticalCenter
               iconText: "󰑐"
               tooltipText: "Refresh"
               fontFamily: root.themeFont

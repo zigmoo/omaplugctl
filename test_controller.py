@@ -8,6 +8,48 @@ from unittest.mock import patch
 import controller as c
 
 class ControllerTests(unittest.TestCase):
+    def test_scan_toggle_saves_booleans_and_reads_back_the_setting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            configuration = home / '.config/omarchy/shell.json'
+            configuration.parent.mkdir(parents=True)
+            configuration.write_text(json.dumps({'bar': {'layout': {'right': [{'id': c.SELF}]}}}))
+
+            def save_setting(arguments):
+                self.assertEqual(arguments[:5], ['omarchy', 'bar', 'set', c.SELF, 'scanBeforeUpdate'])
+                # Mirror the Omarchy CLI's distinction between string and JSON input.
+                value = json.loads(arguments[5]) if '--json' in arguments[6:] else arguments[5]
+                data = json.loads(configuration.read_text())
+                data['bar']['layout']['right'][0]['scanBeforeUpdate'] = value
+                configuration.write_text(json.dumps(data))
+
+            with patch.object(c.pathlib.Path, 'home', return_value=home), \
+                 patch.object(c, 'run', side_effect=save_setting), \
+                 patch.object(c, 'inventory', return_value=[]):
+                for requested in ('false', 'true'):
+                    with self.subTest(requested=requested):
+                        c.set_scan_before_update(requested)
+                        saved = json.loads(configuration.read_text())['bar']['layout']['right'][0]['scanBeforeUpdate']
+                        self.assertIs(saved, requested == 'true')
+                        self.assertIs(c.scan_before_update(), saved)
+
+    def test_scan_toggle_reports_a_failed_save_without_changing_confirmed_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            configuration = home / '.config/omarchy/shell.json'
+            configuration.parent.mkdir(parents=True)
+            configuration.write_text(json.dumps({'bar': {'layout': {'right': [{'id': c.SELF, 'scanBeforeUpdate': True}]}}}))
+            with patch.object(c.pathlib.Path, 'home', return_value=home), patch.object(c, 'run'):
+                with self.assertRaisesRegex(RuntimeError, 'not confirmed'):
+                    c.set_scan_before_update('false')
+                self.assertTrue(c.scan_before_update())
+
+    def test_scan_toggle_rejects_invalid_values_before_saving(self):
+        with patch.object(c, 'run') as run:
+            with self.assertRaises(ValueError):
+                c.set_scan_before_update('off')
+            run.assert_not_called()
+
     def test_sort_by_name_is_case_insensitive(self):
         plugins = [{'id': 'z', 'name': 'alpha'}, {'id': 'a', 'name': 'Bravo'}]
         self.assertEqual([p['id'] for p in c.sort_plugins(plugins, 'name')], ['z', 'a'])

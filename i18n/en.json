@@ -45,8 +45,8 @@
   "config.updates": "Plugin updates",
   "config.updateHelp": "Click an update icon to update the running plugin in the background. Local edits are preserved. Equivalent upstream history rewrites are reconciled after saving a backup.",
   "config.sort": "Default sort order",
-  "plugin.authorFirstCommit": "%1 \u00b7 first commit %2",
-  "plugin.authorShallow": "%1 \u00b7 earliest available commit %2 (shallow history)",
+  "plugin.authorFirstCommit": "First commit %2 \u00b7 Author: %1",
+  "plugin.authorShallow": "Earliest available commit %2 \u00b7 Author: %1 (shallow history)",
   "config.scanBeforeUpdate": "Scan with ClamAV before updating",
   "config.scanHelp": "Scans the exact update locally, without uploads. Signatures refresh automatically. A threat or incomplete scan stops the update. A clean scan is not a guarantee of safety."
 }

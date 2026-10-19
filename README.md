@@ -84,7 +84,7 @@ omarchy plugin remove moo.omaplugctl
 
 ## Description for Agents
 
-OmaPlugCtl manages Omarchy bar plugins from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes.
+OmaPlugCtl manages Omarchy bar plugins (in the super-k menu it's called the 'top bar') from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes.
 
 ## Development
 

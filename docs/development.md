@@ -81,6 +81,14 @@ Update coverage includes preservation of local work, exact fetched commits, equi
 
 See [How updates work](updates.md) for the updater’s behavior and limits. Runtime caches and scanner files belong outside the source tree and must never be committed.
 
+## Bar settings
+
+`barIconScale` is a typed integer in OmaPlugCtl’s bar layout entry. Startup reads it without loading the plugin inventory. After storage confirmation, the service derives shared icon size, canvas, font and spacing tokens from `Commons.Color.shellValues`, preserving the original theme values. Reapplying starts from that baseline, so percentages do not compound. Theme changes recompute the overlay; 100% restores the baseline. Only bar thickness needed for enlarged icons grows; text sizing remains unchanged.
+
+The workspace control reads the selected widget’s declared `pinnedCount` setting. It is disabled when no active supported instance exists or multiple instances make a single control ambiguous. See [Workspace integration](workspaces.md) for the manifest contract and the local clone patch.
+
+Both controls save through `omarchy bar set --json`, verify the datasource, and retain the last confirmed UI value while a save is pending or fails.
+
 ## Controller commands
 
 Run from the source checkout:

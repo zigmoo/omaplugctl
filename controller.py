@@ -9,6 +9,74 @@ EDGES = ('top', 'bottom', 'left', 'right')
 SORT_ORDERS = ('name', 'screen', 'updates')
 
 
+def configured_bar_icon_scale():
+    configuration = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
+    for entries in configuration.get('bar', {}).get('layout', {}).values():
+        for entry in entries if isinstance(entries, list) else []:
+            if isinstance(entry, dict) and entry.get('id') == SELF:
+                value = entry.get('barIconScale', 100)
+                return value if type(value) is int and 50 <= value <= 200 else 100
+    return 100
+
+
+def set_bar_icon_scale(value):
+    if not isinstance(value, str) or not re.fullmatch(r'\d{2,3}', value) or not 50 <= int(value) <= 200:
+        raise ValueError('Choose a bar icon size between 50% and 200%.')
+    percentage = int(value)
+    run(['omarchy', 'bar', 'set', SELF, 'barIconScale', str(percentage), '--json'])
+    if configured_bar_icon_scale() != percentage:
+        raise RuntimeError('The bar icon size was not saved. Refresh and try again.')
+    return {'plugins': inventory(), 'message': 'Bar icon size saved.'}
+
+
+def workspace_settings():
+    """Only offer a count when the active workspace widget declares support."""
+    configuration = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
+    catalog = json.loads(run(['omarchy-plugin-catalog']))
+    candidates = []
+    for plugin in catalog:
+        try:
+            manifest = json.loads(pathlib.Path(plugin['manifestPath']).read_text())
+        except (KeyError, OSError, TypeError, ValueError):
+            continue
+        if not isinstance(manifest, dict):
+            continue
+        provenance = manifest.get('omarchy') or {}
+        if manifest.get('id') != 'omarchy.workspaces' and (not isinstance(provenance, dict) or provenance.get('clonedFrom') != 'omarchy.workspaces'):
+            continue
+        widget = manifest.get('barWidget') or {}
+        if not isinstance(widget, dict):
+            continue
+        schema = widget.get('schema') or []
+        if not isinstance(schema, list) or not any(isinstance(field, dict) and field.get('key') == 'pinnedCount' and field.get('type') == 'integer' for field in schema):
+            continue
+        defaults = widget.get('defaults') or {}
+        defaults = defaults if isinstance(defaults, dict) else {}
+        for entries in configuration.get('bar', {}).get('layout', {}).values():
+            for entry in entries if isinstance(entries, list) else []:
+                entry = {'id': entry} if isinstance(entry, str) else entry
+                if isinstance(entry, dict) and entry.get('id') == plugin['id']:
+                    value = entry.get('pinnedCount', defaults.get('pinnedCount', 5))
+                    if type(value) is int and 0 <= value <= 10:
+                        candidates.append({'id': plugin['id'], 'count': value})
+                    else:
+                        return None
+    # One control must not silently change only one of several widget instances.
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def set_workspace_count(value):
+    if not isinstance(value, str) or not re.fullmatch(r'(?:[0-9]|10)', value):
+        raise ValueError('Choose between 0 and 10 always-visible workspaces.')
+    current = workspace_settings()
+    if current is None:
+        raise RuntimeError('The active workspace widget does not expose a single configurable count.')
+    run(['omarchy', 'bar', 'set', current['id'], 'pinnedCount', value, '--json'])
+    if workspace_settings() != {'id': current['id'], 'count': int(value)}:
+        raise RuntimeError('The workspace count was not saved. Refresh and try again.')
+    return {'plugins': inventory(), 'message': 'Workspace count saved.'}
+
+
 def scan_before_update():
     config = json.loads((pathlib.Path.home()/'.config/omarchy/shell.json').read_text())
     for entries in config.get('bar', {}).get('layout', {}).values():
@@ -442,13 +510,16 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['list', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)
     parser.add_argument('--confirmed', action='store_true')
     a = parser.parse_args()
     try:
+        if a.action == 'settings':
+            print(json.dumps({'ok': True, 'barIconScale': configured_bar_icon_scale()}))
+            return 0
         if a.action == 'update-status':
             print(json.dumps({'ok': True, 'operations': updates.operations()}))
             return 0
@@ -463,6 +534,8 @@ def main():
             data = set_bar_position(a.edge)
         else:
             if a.action == 'list': data = {'plugins': inventory(), 'message': ''}
+            elif a.action == 'icon-scale': data = set_bar_icon_scale(a.id)
+            elif a.action == 'workspace-count': data = set_workspace_count(a.id)
             elif a.action == 'sort': data = set_sort(a.id)
             elif a.action == 'set-scan': data = set_scan_before_update(a.id)
             elif a.action == 'check-updates': data = check_updates()
@@ -470,6 +543,8 @@ def main():
             else: data = execute(a.action, a.id, a.section, a.source, a.index, a.confirmed)
             data['barPosition'] = bar_position()
         data['sortOrder'] = configured_sort()
+        data['barIconScale'] = configured_bar_icon_scale()
+        data['workspaceSettings'] = workspace_settings()
         data['scanBeforeUpdate'] = scan_before_update()
         data['scannerStatus'] = malware.status()
         data['plugins'] = sort_plugins(data['plugins'], data['sortOrder'])

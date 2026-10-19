@@ -8,6 +8,75 @@ from unittest.mock import patch
 import controller as c
 
 class ControllerTests(unittest.TestCase):
+    def bar_settings_fixture(self, home):
+        configuration = home / '.config/omarchy/shell.json'
+        configuration.parent.mkdir(parents=True)
+        configuration.write_text(json.dumps({'bar': {'layout': {'right': [{'id': c.SELF}], 'left': [{'id': 'test.workspaces'}]}}}))
+        manifest = home / 'manifest.json'
+        manifest.write_text(json.dumps({'id': 'test.workspaces', 'omarchy': {'clonedFrom': 'omarchy.workspaces'},
+                                       'barWidget': {'schema': [{'key': 'pinnedCount', 'type': 'integer'}], 'defaults': {'pinnedCount': 9}}}))
+        def command(arguments):
+            if arguments == ['omarchy-plugin-catalog']:
+                return json.dumps([{'id': 'test.workspaces', 'manifestPath': str(manifest)}])
+            self.assertEqual(arguments[:3], ['omarchy', 'bar', 'set'])
+            self.assertIn('--json', arguments)
+            data = json.loads(configuration.read_text())
+            for entries in data['bar']['layout'].values():
+                for entry in entries:
+                    if entry['id'] == arguments[3]: entry[arguments[4]] = json.loads(arguments[5])
+            configuration.write_text(json.dumps(data))
+        return configuration, manifest, command
+
+    def test_bar_controls_save_typed_numbers_and_confirm_readback(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            configuration, _, command = self.bar_settings_fixture(home)
+            with patch.object(c.pathlib.Path, 'home', return_value=home), patch.object(c, 'run', side_effect=command), patch.object(c, 'inventory', return_value=[]):
+                self.assertEqual(c.configured_bar_icon_scale(), 100)
+                self.assertEqual(c.workspace_settings(), {'id': 'test.workspaces', 'count': 9})
+                for value in ('50', '125', '200', '100'):
+                    c.set_bar_icon_scale(value)
+                    self.assertEqual(c.configured_bar_icon_scale(), int(value))
+                for value in ('0', '10', '9'):
+                    c.set_workspace_count(value)
+                    self.assertEqual(c.workspace_settings()['count'], int(value))
+                saved = json.loads(configuration.read_text())['bar']['layout']
+                self.assertIs(type(saved['right'][0]['barIconScale']), int)
+                self.assertIs(type(saved['left'][0]['pinnedCount']), int)
+
+    def test_bar_controls_reject_unsaved_values(self):
+        with patch.object(c, 'run'), patch.object(c, 'configured_bar_icon_scale', return_value=100):
+            with self.assertRaisesRegex(RuntimeError, 'not saved'): c.set_bar_icon_scale('125')
+        with patch.object(c, 'run'), patch.object(c, 'workspace_settings', return_value={'id': 'test.workspaces', 'count': 9}):
+            with self.assertRaisesRegex(RuntimeError, 'not saved'): c.set_workspace_count('3')
+
+    def test_bar_controls_validate_before_commands(self):
+        with patch.object(c, 'run') as command:
+            for invalid in ('49', '201', '100.5', '100%', '', 'true'):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError): c.set_bar_icon_scale(invalid)
+            for invalid in ('-1', '11', '1.5', '', 'true'):
+                with self.subTest(invalid=invalid), self.assertRaises(ValueError): c.set_workspace_count(invalid)
+            command.assert_not_called()
+
+    def test_workspace_count_requires_active_declared_unambiguous_support(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            configuration, manifest, command = self.bar_settings_fixture(home)
+            with patch.object(c.pathlib.Path, 'home', return_value=home), patch.object(c, 'run', side_effect=command):
+                supported = manifest.read_text()
+                for unsupported in ({}, [], None, {'omarchy': []}, {'id': 'omarchy.workspaces', 'barWidget': {'schema': ['pinnedCount']}}):
+                    manifest.write_text(json.dumps(unsupported))
+                    self.assertIsNone(c.workspace_settings())
+                manifest.write_text(supported)
+                data = json.loads(configuration.read_text())
+                data['bar']['layout']['left'].append({'id': 'test.workspaces'})
+                configuration.write_text(json.dumps(data))
+                self.assertIsNone(c.workspace_settings())
+                with self.assertRaisesRegex(RuntimeError, 'single configurable'): c.set_workspace_count('3')
+                data['bar']['layout']['left'] = []
+                configuration.write_text(json.dumps(data))
+                self.assertIsNone(c.workspace_settings())
+
     def test_scan_toggle_saves_booleans_and_reads_back_the_setting(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = pathlib.Path(tmp)

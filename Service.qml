@@ -26,6 +26,9 @@ Item {
   property string currentTab: "plugins"
   property bool scanBeforeUpdate: true
   property string scannerStatus: ""
+  property int barIconScale: 100
+  property bool iconSettingsLoaded: false
+  property var workspaceSettings: null
   readonly property bool busy: controller.running
   readonly property string helper: decodeURIComponent(Qt.resolvedUrl("controller.py").toString().replace(/^file:\/\//, ""))
   readonly property string themeFont: bar && bar.fontFamily ? bar.fontFamily : Style.font.family
@@ -62,6 +65,52 @@ Item {
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
   }
   function text(key) { return strings.t(key) }
+
+  function applyBarIconScale() {
+    var values = Object.assign({}, Commons.Color.shellValues)
+    if (barIconScale !== 100) {
+      function token(name, fallback) {
+        var value = parseInt(values["bar." + name], 10)
+        return isFinite(value) && value > 0 ? value : fallback
+      }
+      var ratio = barIconScale / 100
+      var originalCanvas = token("icon-canvas", 16)
+      var originalSize = Math.min(originalCanvas, token("icon-size", 12))
+      var canvas = Math.max(1, Math.round(originalCanvas * ratio))
+      values["bar.icon-size"] = Math.max(1, Math.round(originalSize * ratio))
+      values["bar.icon-canvas"] = canvas
+      values["bar.icon-font"] = Math.max(1, Math.round(token("icon-font", 13) * ratio))
+      values["bar.icon-slot"] = Math.max(canvas, token("icon-slot", 27) + canvas - originalCanvas)
+      values["bar.status-slot"] = Math.max(canvas, token("status-slot", 21) + canvas - originalCanvas)
+      // Keep text-bearing widgets readable when shrinking; grow the bar to fit larger icons.
+      values["bar.size-horizontal"] = token("size-horizontal", 26) + Math.max(0, canvas - originalCanvas)
+      values["bar.size-vertical"] = token("size-vertical", 28) + Math.max(0, canvas - originalCanvas)
+    }
+    Style.applyShellValues(values)
+  }
+  onBarIconScaleChanged: applyBarIconScale()
+  Component.onDestruction: Style.applyShellValues(Commons.Color.shellValues)
+  Connections {
+    target: Commons.Color
+    function onShellValuesChanged() { Qt.callLater(root.applyBarIconScale) }
+  }
+  Process {
+    command: ["python3", root.helper, "settings"]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        try {
+          var result = JSON.parse(text)
+          if (result.ok && !root.iconSettingsLoaded) {
+            root.barIconScale = result.barIconScale || 100
+            root.iconSettingsLoaded = true
+            root.applyBarIconScale()
+          }
+        } catch (error) { /* A normal menu refresh can retry a failed startup read. */ }
+      }
+    }
+  }
 
   Connections {
     target: root.bar
@@ -116,7 +165,7 @@ Item {
     else if (action !== "list" && action !== "check-updates") argv.push(pendingId)
     if (action === "move") argv.push("--section", section, "--source", source, "--index", String(index))
     if (confirmed) argv.push("--confirmed")
-    message = action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
+    message = action === "icon-scale" ? strings.t("config.iconSaving") : action === "workspace-count" ? strings.t("config.workspaceSaving") : action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
     failed = false
     confirmingId = ""
     controller.command = argv
@@ -132,7 +181,7 @@ Item {
     function sort(order: string): void { root.invoke("sort", order) }
     function tab(name: string): void { if (name === "plugins" || name === "config") root.currentTab = name }
     function status(): string {
-      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
+      return JSON.stringify({open: root.menuOpen, visible: panel.visible, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
   }
   Process {
@@ -173,6 +222,9 @@ Item {
           root.sortOrder = result.sortOrder || "screen"
           root.scanBeforeUpdate = result.scanBeforeUpdate !== false
           root.scannerStatus = result.scannerStatus || ""
+          root.barIconScale = result.barIconScale || 100
+          root.iconSettingsLoaded = true
+          root.workspaceSettings = result.workspaceSettings || null
           Qt.callLater(function() { pluginList.contentY = Math.min(oldY, Math.max(0, pluginList.contentHeight - pluginList.height)) })
         }
       } catch (e) {
@@ -227,6 +279,66 @@ Item {
           color: Commons.Color.popups.text
           font.family: root.themeFont
           font.pixelSize: Style.font.body
+        }
+        Row {
+          width: parent.width
+          spacing: Style.space(12)
+          Ui.NumberField {
+            id: iconScaleControl
+            objectName: "barIconScaleControl"
+            label: strings.t("config.iconSize")
+            value: root.barIconScale
+            from: 50
+            to: 200
+            stepSize: 5
+            fontFamily: root.themeFont
+            foreground: Commons.Color.popups.text
+            fieldWidth: Style.space(140)
+            enabled: !root.busy && root.iconSettingsLoaded
+            onModified: function(value) {
+              field.value = Qt.binding(function() { return root.barIconScale })
+              root.invoke("icon-scale", String(value))
+            }
+          }
+          Ui.Button {
+            objectName: "resetBarIconScaleButton"
+            anchors.bottom: parent.bottom
+            text: strings.t("config.reset")
+            fontFamily: root.themeFont
+            foreground: Commons.Color.popups.text
+            focusable: true
+            enabled: !root.busy && root.barIconScale !== 100
+            onClicked: root.invoke("icon-scale", "100")
+          }
+        }
+        Column {
+          width: parent.width
+          spacing: Style.space(6)
+          Ui.NumberField {
+            id: workspaceCountControl
+            objectName: "workspaceCountControl"
+            label: strings.t("config.workspaceCount")
+            value: root.workspaceSettings ? root.workspaceSettings.count : 0
+            from: 0
+            to: 10
+            fontFamily: root.themeFont
+            foreground: Commons.Color.popups.text
+            fieldWidth: Style.space(140)
+            enabled: !root.busy && root.workspaceSettings !== null
+            onModified: function(value) {
+              field.value = Qt.binding(function() { return root.workspaceSettings ? root.workspaceSettings.count : 0 })
+              root.invoke("workspace-count", String(value))
+            }
+          }
+          Text {
+            width: parent.width
+            text: strings.t(root.workspaceSettings ? "config.workspaceHelp" : "config.workspaceUnsupported")
+            textFormat: Text.PlainText
+            wrapMode: Text.WordWrap
+            color: Qt.darker(Commons.Color.popups.text, 1.4)
+            font.family: root.themeFont
+            font.pixelSize: Style.font.caption
+          }
         }
         Text {
           width: parent.width
@@ -407,6 +519,7 @@ Item {
       Text {
         id: status
         width: parent.width
+        visible: root.message !== "" || root.currentTab === "plugins"
         text: root.message || "Scroll to see all plugins"
         color: root.failed ? Commons.Color.urgent : Qt.darker(Commons.Color.popups.text, 1.4)
         font.family: root.themeFont

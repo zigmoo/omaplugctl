@@ -62,7 +62,11 @@ If an update stops, read the row or footer message for the reason. Common causes
 
 ## Config
 
-The **Config** tab holds the saved sort order and **Scan with ClamAV before updating**, which defaults to on. Settings appear as saved only after Omarchy confirms them.
+The **Config** tab holds bar icon size, the minimum number of workspace buttons, the saved sort order and **Scan with ClamAV before updating**, which defaults to on. Settings appear as saved only after Omarchy confirms them.
+
+Bar icon size ranges from **50% to 200%** of the current theme. **Reset** restores 100%. It changes shared bar icon sizing while preserving text size. Widgets with their own fixed sizing may behave differently.
+
+The workspace control sets how many buttons are always visible, from **0 to 10**. Existing workspaces remain visible; reducing the number does not close workspaces or move windows. It requires a workspace widget that exposes a count setting. [Workspace integration](docs/workspaces.md) explains support for custom clones.
 
 ClamAV checks the fetched source locally before an update changes the checkout. Signatures refresh as needed, at most once per day. Plugin contents are never uploaded to a scanning service.
 
@@ -84,7 +88,7 @@ omarchy plugin remove moo.omaplugctl
 
 ## Description for Agents
 
-OmaPlugCtl manages Omarchy bar plugins (in the super-k menu it's called the 'top bar') from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes.
+OmaPlugCtl manages Omarchy bar plugins (in the super-k menu it's called the 'top bar') from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes. Adjust bar icon size and, with a supported workspace widget, the minimum workspace button count in Config.
 
 ## Development
 

@@ -1,0 +1,63 @@
+--- a/Workspaces.qml
++++ b/Workspaces.qml
+@@ -18,12 +18,15 @@
+   }
+ 
+   function workspaceIds() {
+-    var ids = [1, 2, 3, 4, 5, 6, 7, 8, 9]
++    var configured = Number(root.setting("pinnedCount", 9))
++    var count = isFinite(configured) ? Math.max(0, Math.min(10, Math.floor(configured))) : 9
++    var ids = []
++    for (var slot = 1; slot <= count; slot++) ids.push(slot)
+     var values = Hyprland.workspaces.values
+ 
+     for (var i = 0; i < values.length; i++) {
+       var id = values[i].id
+-      if (id > 0 && id <= 10 && ids.indexOf(id) === -1) ids.push(id)
++      if (id > 0 && ids.indexOf(id) === -1) ids.push(id)
+     }
+ 
+     ids.sort(function(left, right) { return left - right })
+@@ -44,7 +47,7 @@
+     id: grid
+     anchors.fill: parent
+     anchors.rightMargin: root.trailingGap
+-    columns: root.vertical ? 1 : root.workspaceIds().length
++    columns: root.vertical ? 1 : Math.max(1, root.workspaceIds().length)
+     columnSpacing: root.vertical ? 0 : Style.space(1)
+     rowSpacing: root.vertical ? Style.space(2) : 0
+ 
+--- a/manifest.json
++++ b/manifest.json
+@@ -2,7 +2,7 @@
+   "schemaVersion": 1,
+   "id": "moo.workspaces",
+   "name": "My Workspaces",
+-  "version": "1.0.0",
++  "version": "1.0.1",
+   "author": "Omarchy",
+   "description": "Workspace number indicators",
+   "kinds": [
+@@ -15,7 +15,21 @@
+     "displayName": "My Workspaces",
+     "description": "Workspace number indicators",
+     "category": "Compositor",
+-    "allowMultiple": false
++    "allowMultiple": false,
++    "defaults": {
++      "pinnedCount": 9
++    },
++    "schema": [
++      {
++        "key": "pinnedCount",
++        "type": "integer",
++        "label": "Minimum workspace buttons",
++        "defaultValue": 9,
++        "min": 0,
++        "max": 10,
++        "step": 1
++      }
++    ]
+   },
+   "omarchy": {
+     "clonedFrom": "omarchy.workspaces"

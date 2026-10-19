@@ -4,7 +4,9 @@ Find, install, enable, arrange and update Omarchy plugins from one menu.
 
 Click the plug icon in the bar to see what is running, move the bar to another screen edge, or update an installed plugin without leaving the menu.
 
-<img src="docs/assets/overview.png" alt="OmaPlugCtl menu with a graphical bar-position selector, sort control and plugin rows with individual actions" width="420">
+<img src="docs/assets/plugins.png" alt="Plugins tab with Elsewhen hovered, showing its world-clock description, local update date and Jason Fried attribution" width="420">
+
+Hover a plugin row for its description and provenance. The Elsewhen hover capture above shows its world-clock features, local update date and author.
 
 ## Install
 
@@ -64,6 +66,8 @@ If an update stops, read the row or footer message for the reason. Common causes
 
 ## Config
 
+<img src="docs/assets/config.png" alt="Config tab showing bar icon size, minimum workspace buttons and compatibility guidance, default sort order and enabled ClamAV scanning" width="420">
+
 The **Config** tab holds bar icon size, the minimum number of workspace buttons, the saved sort order and **Scan with ClamAV before updating**, which defaults to on. Settings appear as saved only after Omarchy confirms them.
 
 Bar icon size ranges from **50% to 200%** of the current theme. **Reset** restores 100%. It changes shared bar icon sizing while preserving text size. Widgets with their own fixed sizing may behave differently.
@@ -75,6 +79,8 @@ ClamAV checks the fetched source locally before an update changes the checkout. 
 A detection, scanner error or incomplete scan stops the update. A clean result means **no threats detected**, not proof of safety. Turning the toggle off explicitly skips scanning for subsequent updates.
 
 ## Install new plugins
+
+<img src="docs/assets/install.png" alt="Install tab showing the marketplace search field, Verified only filter, catalog refresh time and per-plugin installation actions" width="420">
 
 The × at the right edge of a nonempty search field clears the query and returns keyboard focus to the field.
 

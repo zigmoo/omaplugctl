@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 """OmaPlugCtl: argv-only commands with datasource readback."""
-import argparse, datetime, json, os, pathlib, re, subprocess, sys, time, urllib.request, fcntl
+import argparse, datetime, json, os, pathlib, re, stat, subprocess, sys, time, urllib.request, fcntl
 import updates
 import malware
 SELF = 'moo.omaplugctl'
@@ -94,6 +94,66 @@ def run(argv):
         raise RuntimeError(p.stderr.strip() or p.stdout.strip() or f'Command failed ({p.returncode})')
     return p.stdout.strip()
 
+def readme_description(metadata):
+    directory = metadata.get('sourceDir')
+    if not isinstance(directory, str) or not directory:
+        return ''
+    # Single-file built-ins share a directory; its README is not per-plugin.
+    manifest = metadata.get('manifestPath')
+    if isinstance(manifest, str) and pathlib.Path(manifest).name != 'manifest.json':
+        return ''
+    try:
+        path = pathlib.Path(directory) / 'README.md'
+        descriptor = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW)
+        with os.fdopen(descriptor, 'rb') as file:
+            info = os.fstat(file.fileno())
+            if not stat.S_ISREG(info.st_mode) or info.st_size > 256 * 1024:
+                return ''
+            content = file.read(256 * 1024 + 1)
+        if len(content) > 256 * 1024:
+            return ''
+        lines = content.decode('utf-8-sig').splitlines()
+    except (OSError, UnicodeError, ValueError):
+        return ''
+    fence = None
+    sections = []
+    paragraph = []
+    collecting = False
+    finished = False
+    for line in lines:
+        marker = re.match(r'^ {0,3}(`{3,}|~{3,})(.*)$', line)
+        if fence:
+            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
+                fence = None
+            continue
+        if marker:
+            fence = marker[1]
+            if collecting:
+                finished = True
+            continue
+        heading = re.match(r'^ {0,3}(#{1,6})\s+(.+?)\s*$', line)
+        if heading:
+            title = re.sub(r'\s+#+$', '', heading[2]).strip()
+            collecting = heading[1] == '##' and title.casefold() == 'description for agents'
+            if collecting:
+                paragraph = []
+                sections.append(paragraph)
+            finished = False
+            continue
+        if not collecting or finished:
+            continue
+        text = line.strip()
+        if not text:
+            if paragraph:
+                finished = True
+        elif line.startswith(('    ', '\t')) or re.match(r'^(?:>|[-*+]\s|\d+[.)]\s|!\[)', text):
+            finished = True
+        else:
+            paragraph.append(text)
+    # Ambiguous repeated sections or invalid blocks fall back to the manifest.
+    return ' '.join(' '.join(sections[0]).split()) if len(sections) == 1 else ''
+
+
 def plugin_description(metadata):
     widget = metadata.get('barWidget')
     widget = widget if isinstance(widget, dict) else {}
@@ -104,7 +164,7 @@ def plugin_description(metadata):
         text = ' '.join(value.split())
         if text and not any(text.casefold() in existing.casefold() for existing in descriptions):
             descriptions.append(text)
-    description = '\n\n'.join(descriptions)
+    description = readme_description(metadata) or '\n\n'.join(descriptions)
     return description if len(description) <= 1200 else description[:1199] + '…'
 
 def plugin_author(manifest):

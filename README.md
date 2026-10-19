@@ -1,35 +1,91 @@
 # OmaPlugCtl
 
-Manage Omarchy bar plugins from the plug icon in the bar.
+Enable, arrange and update Omarchy bar plugins from one menu.
 
-The compact screen diagram moves the bar to any edge. The current edge is highlighted and the other edges remain faintly visible. The menu follows the bar without closing, including changes between horizontal and vertical placement. Sorting defaults to screen appearance order, with name and pending-update date also available.
+Click the plug icon in the bar to see what is running, move the bar to another screen edge, or update an installed plugin without leaving the menu.
 
-Hover a plugin row for its function, local update date, author and default Omarchy status. Meaningful manifest attribution is retained. When attribution is missing or only says Omarchy, the manager follows each plugin file’s Git history through renames to its first recorded commit, and identifies that author and commit in the footer. Shallow history is labeled as the earliest available commit. Results are cached by source commit; hovering never contacts GitHub. Enable/disable, About, movement and uninstall actions remain available. Uninstall requires confirmation. Default Omarchy plugins cannot be removed, and OmaPlugCtl cannot disable or remove itself.
+<img src="docs/assets/overview.png" alt="OmaPlugCtl menu with a graphical bar-position selector, sort control and plugin rows with individual actions" width="420">
 
-**Check updates** fetches each installed source repository and caches its status. Normal refreshes do not contact upstream. An update icon appears when source changes are pending. Hover it for the latest change date and up to three commit subjects.
+## Install
 
-**Click an update icon to update that plugin.** A detached worker fetches the current branch’s configured origin ref and fast-forwards the actual running checkout to that exact fetched commit. Symlinked installations update their underlying source repo. It never creates a merge commit, rebases, stashes or hard-resets local work. When upstream has rewritten history, the updater checks every installed-only commit against upstream using whitespace-preserving verbatim patch IDs. Only complete matches without local-only merge or empty commits qualify for automatic reconciliation. It first saves and verifies a `backup/omaplugctl/<timestamp>-<old-commit>` branch, then uses a non-forced checkout to adopt the new upstream history. Dirty checkouts, unmatched commits, detached HEAD and branches without origin tracking stop with an accurate error. Ignored local files are protected from overwrite as well. The menu displays progress and confirms the result only after Git readback. Source text and errors render as plain text. Per-repository locking prevents concurrent mutations. Git hooks are disabled for the fast-forward operation.
+Requires Omarchy’s Quickshell shell and plugin commands, plus Git and Python 3.
 
-The worker survives a shell rescan and an update to OmaPlugCtl itself. After changing files it requests a plugin rescan. The menu’s lightweight status polling refreshes the installed version and clears the update indicator when the checkout is current. Failed updates display their reason; no terminal, agent, review task or confirmation prompt is opened by an update click. Built-in plugins belonging to the shared Omarchy repository remain managed by Omarchy’s system updater.
+Install ClamAV for local malware checks, then add the plugin:
 
-Agentic review is retired from `master`. The complete implementation, including the unfinished background GitHub-publication prototype, is preserved on [archive/agentic-reviews](https://github.com/zigmoo/omaplugctl/tree/archive/agentic-reviews) at commit `031d255`, locally and on both remotes. The active version contains no reviewer configuration, dispatch, report polling or publication code. Existing DIL review evidence and machine settings are retained outside this repository for future use. **Config** remains available for the saved sort order and **Scan with ClamAV before updating**. Agentic reviewer controls remain retired.
+```bash
+omarchy pkg add clamav
+omarchy plugin add https://github.com/zigmoo/omaplugctl.git --enable
+```
 
-**Malware checking defaults to enabled.** ClamAV runs locally before any update changes the checkout. Signature databases refresh automatically, at most once per day, using FreshClam’s signature verification. The scanner reads the exact fetched Git blobs into an inert archive; plugin code is never executed or uploaded. All tracked blobs are included, even files marked `export-ignore`. Symlinks are scanned as their target text without following them. Submodules, Git LFS payloads, oversized snapshots, encrypted archives and scan-limit failures stop the update because their contents cannot be fully checked. Any detection, signature-refresh failure or scanner error stops the update. A clean scan means **no threats detected**, not proof of safety.
+The plug icon appears in the bar’s right section. Open it to manage your installed bar plugins, including OmaPlugCtl itself.
 
-Install the `clamav` package through your distribution to provide `clamscan` and `freshclam`. A user-local runtime is also supported at `$XDG_DATA_HOME/omaplugctl/scanner/usr/bin` with its matching `usr/lib` and `etc/clamav/certs` (default `~/.local/share/omaplugctl/scanner`). On this machine, that runtime was extracted from signature-verified Arch packages without changing system files. Scanner databases and logs are in the manager’s XDG state directory. The Config toggle is saved through Omarchy and rendered only after storage readback. Disabling it explicitly skips scans for subsequent updates.
+## The plugin list
 
-Source: [zigmoo/omaplugctl](https://github.com/zigmoo/omaplugctl). The trunk is `master`. Local development checkout: `~/dil/plugins/omaplugctl`. The active installation is a symlink at `~/.config/omarchy/plugins/moo.omaplugctl`. GitHub is remote `origin`; the secondary development remote is `workshop`.
+Each row shows a plugin’s name, bar position and update status. Hover the row for its description, local update date, author and whether it ships with Omarchy.
 
-Useful commands:
+| Control | Action |
+| --- | --- |
+| Power or play | Disable or enable the plugin. |
+| Update arrows | Update this plugin when a source update is available. Hover for the latest change date and up to three commit subjects. |
+| Information | Open the plugin’s source page. |
+| Three dots | Move an instance to another bar section, or uninstall an installed third-party plugin. |
+
+Uninstall asks for confirmation and removes the plugin’s local checkout. Disabling keeps its files. Built-in plugins cannot be uninstalled here; OmaPlugCtl keeps itself enabled so its controls remain available.
+
+If a plugin provides no meaningful author attribution, OmaPlugCtl traces its manifest and entry-point files through Git history to their first recorded commits. The hover footer identifies the author and commit; shallow histories are labeled as the earliest available record.
+
+## Move the bar
+
+Click an edge of the little screen diagram to move the bar there. The highlighted edge is the current position; the other three remain faintly visible.
+
+The menu moves with the bar and stays open, even when switching between horizontal and vertical placement. You can try another edge immediately without searching for the plug icon again.
+
+## Find and arrange plugins
+
+**Sort by** offers three views:
+
+- **Screen order**, the default, follows the bar’s sections and slots, then lists plugins without a position.
+- **Name** sorts alphabetically.
+- **Pending update date** puts pending updates first, newest change first.
+
+Sorting changes the list, not the bar. To move a plugin, open its three-dot controls and choose a destination section. Plugins with multiple bar instances have a separate movement control for each instance.
+
+## Update a plugin
+
+Click **Check updates** to fetch installed source repositories and look for changes. The refresh icon reloads local state without contacting upstream repositories.
+
+When an update icon appears, hover it to see what changed, then click to update. The work happens in the background; progress and the result appear in the menu. The first scanned update may take longer while ClamAV downloads its signatures.
+
+Updates apply to the checkout actually running the plugin, including the target of a symlink. Local edits and unmatched local commits are preserved. Built-in plugins in Omarchy’s shared repository are updated with `omarchy update`.
+
+If an update stops, read the row or footer message for the reason. Common causes are local changes, divergent commits, missing ClamAV, or a failed scan. Resolve the cause, then check again. [How updates work](docs/updates.md) explains reconciliation, backups and scanning limits.
+
+## Config
+
+The **Config** tab holds the saved sort order and **Scan with ClamAV before updating**, which defaults to on. Settings appear as saved only after Omarchy confirms them.
+
+ClamAV checks the fetched source locally before an update changes the checkout. Signatures refresh as needed, at most once per day. Plugin contents are never uploaded to a scanning service.
+
+A detection, scanner error or incomplete scan stops the update. A clean result means **no threats detected**, not proof of safety. Turning the toggle off explicitly skips scanning for subsequent updates.
+
+## Commands
 
 ```bash
 omarchy-shell moo.omaplugctl show
 omarchy-shell moo.omaplugctl hide
 omarchy-shell moo.omaplugctl status
-python3 ~/dil/plugins/omaplugctl/controller.py check-updates
-python3 ~/dil/plugins/omaplugctl/controller.py update <plugin-id>
 ```
 
-Runtime cache and operation state live under `$XDG_STATE_HOME/omarchy/omaplugctl` (default `~/.local/state/omarchy/omaplugctl`). They are never committed. No Omarchy packaged source is modified.
+To remove OmaPlugCtl itself:
 
-`Widget.qml` owns the bar icon; `Service.qml` owns the persistent menu and controller. Recreated icons register their anchor with the service. Tests: run `python3 -m unittest -v` with `TMPDIR` set to a task scratch directory; run `qmllint` for changed QML and exercise pointer behavior with Quickshell/QtTest.
+```bash
+omarchy plugin remove moo.omaplugctl
+```
+
+## Description for Agents
+
+OmaPlugCtl manages Omarchy bar plugins from a menu that stays open when the bar moves. Enable or disable plugins, move their bar instances, and sort by screen order, name or pending update date. Hover rows for function, author and local update date. Check source repositories and update individual running checkouts, with local ClamAV scanning enabled by default and protection for local changes.
+
+## Development
+
+See the [development guide](docs/development.md) for local checkouts, architecture, verification and the archived agent-review experiment. Report problems through [GitHub issues](https://github.com/zigmoo/omaplugctl/issues), including the message shown and the affected plugin’s source repository.

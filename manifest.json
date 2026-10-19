@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "id": "moo.omaplugctl",
   "name": "OmaPlugCtl",
-  "version": "0.12.1",
+  "version": "0.13.0",
   "author": "Jason Ziegler",
-  "description": "Manage bar plugins without modifying Omarchy source.",
+  "description": "Manage Omarchy bar plugins: enable, arrange, inspect and update them from one persistent menu.",
   "kinds": [
     "bar-widget",
     "service"

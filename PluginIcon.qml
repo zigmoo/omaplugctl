@@ -19,7 +19,7 @@ Item {
     "omarchy.network": "󰤨", "omarchy.menu": "\ue900", "omarchy.system-update": "\uf021",
     "io.github.rodrix2000.photodock": "󰄀", "omarchy.power": "󰁹", "omarchy.spacer": "↔",
     "omarchy.tray": "\uf053", "davefano.trackpad-plus": "󰟸", "omarchy.weather": "󰖙",
-    "crmne.hyprmoncfg": "󰍺"
+    "crmne.hyprmoncfg": "󰍺", "moo.omathemectl": "󰏘", "moo.omaremotes": "󰢹"
   })
   readonly property bool custom: ["moo.omaplugctl", "omarchy.tailscale", "omarchy.dropbox", "com.80kv.omatris", "bjarneo.ring-light", "com.omastorm.radar"].indexOf(sourceId) >= 0
   Text {

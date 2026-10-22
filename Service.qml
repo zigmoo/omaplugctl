@@ -539,9 +539,10 @@ Item {
         }
       }
       Ui.PanelSeparator { visible: runtime.ready && root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
-      ListView {
+      AcceleratedListView {
         id: pluginList
         objectName: "managerPluginsList"
+        wheelStep: Style.space(56)
         visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)

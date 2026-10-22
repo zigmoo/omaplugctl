@@ -56,6 +56,8 @@ The menu moves with the bar and stays open, even when switching between horizont
 
 Sorting changes the list, not the bar. To move a plugin, open its three-dot controls and choose a destination section. Plugins with multiple bar instances have a separate movement control for each instance.
 
+In the Plugins and Install lists, sustained mouse-wheel scrolling gradually speeds up to three times the initial step. Pausing for 300 ms or reversing direction resets the speed. Trackpad gestures, horizontal scrolling and keyboard navigation retain their native behavior; nested controls receive wheel input first.
+
 ## Update a plugin
 
 Click **Check updates** to fetch installed source repositories and look for changes. The refresh icon reloads local state without contacting upstream repositories.

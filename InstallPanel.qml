@@ -156,9 +156,10 @@ Column {
     font.pixelSize: Style.font.caption
   }
   Ui.PanelSeparator { id: divider; width: parent.width; foreground: Commons.Color.popups.text }
-  ListView {
+  AcceleratedListView {
     id: list
     objectName: "installResultsList"
+    wheelStep: Style.space(56)
     width: parent.width
     height: Math.max(0, root.height - search.height - filters.height - summary.height - help.height - divider.height - status.height - root.spacing * 6)
     clip: true

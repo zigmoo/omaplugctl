@@ -45,7 +45,7 @@ ShellRoot {
         wait(50)
       }
       function test_overlay_visible_and_openable() {
-        compare(findChild(row, "pluginPositionStatus").text, "Enabled · overlay")
+        compare(findChild(row, "pluginPositionStatus").text, "Enabled")
         let open = findChild(row, "pluginOpenButton")
         verify(open.visible); verify(open.enabled)
         mouseClick(open)
@@ -56,7 +56,7 @@ ShellRoot {
       }
       function test_disabled_overlay_requires_enable_before_open() {
         row.plugin = Object.assign({}, row.plugin, {enabled: false}); wait(30)
-        compare(findChild(row, "pluginPositionStatus").text, "Disabled · overlay")
+        compare(findChild(row, "pluginPositionStatus").text, "Disabled")
         let open = findChild(row, "pluginOpenButton"); verify(!open.enabled)
         mouseClick(open); compare(host.calls.length, 0)
         mouseClick(findChild(row, "pluginEnableButton"))
@@ -72,7 +72,7 @@ ShellRoot {
         row.expanded = true; wait(30)
         verify(!findChild(row, "pluginOpenButton").visible)
         compare(findChild(row, "pluginMoveInstance"), null)
-        compare(findChild(row, "pluginPositionStatus").text, "Enabled · service")
+        compare(findChild(row, "pluginPositionStatus").text, "Enabled")
       }
       function test_bar_widgets_retain_placement_controls() {
         row.plugin = Object.assign({}, row.plugin, {kinds: ["bar-widget"], canOpen: false,
@@ -81,6 +81,40 @@ ShellRoot {
         verify(!findChild(row, "pluginOpenButton").visible)
         verify(findChild(row, "pluginMoveInstance") !== null)
         verify(findChild(row, "pluginPositionStatus").text.indexOf("Position: Right") === 0)
+      }
+      function test_default_plugin_shows_brand_and_custom_icon() {
+        row.plugin = Object.assign({}, row.plugin, {id: "omarchy.audio", firstParty: true, clonedFrom: "", kinds: ["bar-widget"], isBarWidget: true, canOpen: false})
+        wait(50)
+        let icon = findChild(row, "pluginIdentityIcon")
+        verify(findChild(icon, "omarchyIdentityIcon").visible)
+        verify(findChild(icon, "pluginOwnIdentityIcon").visible)
+        compare(findChild(icon, "omarchyIdentityIcon").font.family, "omarchy")
+        verify(icon.width > icon.height)
+        grabImage(win.contentItem).save(Qt.resolvedUrl("default-icon-pair.png").toString().replace(/^file:\/\//, ""))
+      }
+      function test_default_without_custom_icon_shows_brand_only() {
+        row.plugin = Object.assign({}, row.plugin, {id: "omarchy.background", firstParty: true, clonedFrom: "", kinds: ["service"], canOpen: false})
+        wait(30)
+        let icon = findChild(row, "pluginIdentityIcon")
+        verify(findChild(icon, "omarchyIdentityIcon").visible)
+        verify(!findChild(icon, "pluginOwnIdentityIcon").visible)
+        compare(icon.width, icon.height)
+        row.plugin = Object.assign({}, row.plugin, {id: "omarchy.menu"}); wait(30)
+        verify(!findChild(icon, "pluginOwnIdentityIcon").visible) // Do not duplicate the logo.
+      }
+      function test_user_clone_is_not_branded_as_default() {
+        row.plugin = Object.assign({}, row.plugin, {id: "user.clock", firstParty: false, clonedFrom: "omarchy.clock", kinds: ["bar-widget"], isBarWidget: true})
+        wait(30)
+        let icon = findChild(row, "pluginIdentityIcon")
+        verify(!findChild(icon, "omarchyIdentityIcon").visible)
+        verify(findChild(icon, "pluginOwnIdentityIcon").visible)
+      }
+      function test_combined_kinds_have_all_badges() {
+        row.plugin = Object.assign({}, row.plugin, {kinds: ["bar-widget", "service", "panel"], isBarWidget: true})
+        wait(30)
+        verify(findChild(row, "kindBadge_bar-widget") !== null)
+        verify(findChild(row, "kindBadge_service") !== null)
+        verify(findChild(row, "kindBadge_panel") !== null)
       }
       function cleanup() { console.log("PLUGIN KINDS TEST", qtest_results.functionName, qtest_results.failed) }
       function cleanupTestCase() {

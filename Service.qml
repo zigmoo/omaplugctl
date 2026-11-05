@@ -15,6 +15,7 @@ Item {
   property var widgetAnchors: []
   property bool menuOpen: false
   property var plugins: []
+  readonly property var filteredPlugins: kindFilter.filteredPlugins
   property string message: ""
   property bool failed: false
   property string confirmingId: ""
@@ -452,7 +453,9 @@ Item {
         visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         title: "OmaPlugCtl"
-        meta: root.plugins.length + " plugins · " + root.plugins.filter(function(p) { return p.enabled }).length + " enabled"
+        meta: kindFilter.allSelected
+          ? strings.t("plugins.count").arg(Commons.I18n.formatNumber(root.plugins.length)).arg(Commons.I18n.formatNumber(root.plugins.filter(function(p) { return p.enabled }).length))
+          : strings.t("plugins.filteredCount").arg(Commons.I18n.formatNumber(root.filteredPlugins.length)).arg(Commons.I18n.formatNumber(root.plugins.length)).arg(Commons.I18n.formatNumber(root.filteredPlugins.filter(function(p) { return p.enabled }).length))
         foreground: Commons.Color.popups.text
         fontFamily: root.themeFont
         iconComponent: Component {
@@ -490,9 +493,10 @@ Item {
         visible: runtime.ready && root.currentTab === "plugins"
         objectName: "barPositionControls"
         width: parent.width
-        spacing: Style.space(20)
+        spacing: Style.space(12)
         Column {
-          width: Style.space(140)
+          id: positionColumn
+          width: Math.min(Style.space(112), barControls.width * 0.27)
           spacing: Style.space(6)
           Text {
             text: strings.t("bar.position")
@@ -513,7 +517,52 @@ Item {
           }
         }
         Column {
-          width: Math.max(0, barControls.width - Style.space(160))
+          id: kindColumn
+          width: Math.max(0, (barControls.width - positionColumn.width - barControls.spacing * 2) * 0.55)
+          spacing: Style.space(6)
+          Text {
+            text: strings.t("kinds.filter")
+            textFormat: Text.PlainText
+            color: Commons.Color.popups.text
+            font.family: root.themeFont
+            font.pixelSize: Style.font.caption
+          }
+          PluginKindFilter {
+            id: kindFilter
+            width: parent.width
+            host: root
+            plugins: root.plugins
+            enabled: root.confirmingId === ""
+            onValuesChanged: { root.confirmingId = ""; Qt.callLater(function() { pluginList.positionViewAtBeginning() }) }
+          }
+          Row {
+            spacing: Style.space(4)
+            Ui.Button {
+              objectName: "pluginKindsAllButton"
+              text: strings.t("kinds.selectAll")
+              horizontalPadding: Style.space(5)
+              verticalPadding: Style.space(1)
+              foreground: Commons.Color.popups.text
+              fontFamily: root.themeFont
+              focusable: true
+              enabled: root.confirmingId === ""
+              onClicked: kindFilter.values = kindFilter.resolvedOptions.map(function(option) { return option.value })
+            }
+            Ui.Button {
+              objectName: "pluginKindsNoneButton"
+              text: strings.t("kinds.selectNone")
+              horizontalPadding: Style.space(5)
+              verticalPadding: Style.space(1)
+              foreground: Commons.Color.popups.text
+              fontFamily: root.themeFont
+              focusable: true
+              enabled: root.confirmingId === ""
+              onClicked: kindFilter.values = []
+            }
+          }
+        }
+        Column {
+          width: Math.max(0, barControls.width - positionColumn.width - kindColumn.width - barControls.spacing * 2)
           spacing: Style.space(6)
           Text {
             text: strings.t("sort.label")
@@ -548,7 +597,7 @@ Item {
         height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)
         clip: true
         spacing: Style.space(5)
-        model: root.plugins
+        model: root.filteredPlugins
         boundsBehavior: Flickable.StopAtBounds
         Controls.ScrollBar.vertical: Controls.ScrollBar { id: scroll; policy: Controls.ScrollBar.AsNeeded }
         Keys.onEscapePressed: root.close()
@@ -566,8 +615,9 @@ Item {
           host: root
         }
         Text {
-          visible: root.plugins.length === 0 && !root.busy
-          text: "No bar plugins found"
+          visible: root.filteredPlugins.length === 0 && !root.busy
+          text: strings.t("kinds.empty")
+          textFormat: Text.PlainText
           color: Commons.Color.popups.text
           font.family: root.themeFont
           font.pixelSize: Style.font.body

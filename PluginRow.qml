@@ -25,7 +25,7 @@ Item {
       Ui.PanelToolTip {
         id: descriptionTip
         objectName: "pluginDescriptionTooltip"
-        visible: rowHover.hovered && !actionHover.hovered && !root.host.busy
+        visible: rowHover.hovered && !kindBadges.hovered && !actionHover.hovered && !root.host.busy
         text: root.plugin.description || root.host.noDescriptionText
         fontFamily: root.host.themeFont
         width: Math.min(root.width, Style.space(360))
@@ -73,13 +73,15 @@ Item {
       }
       PluginIcon {
         id: mark
+        objectName: "pluginIdentityIcon"
         anchors.left: parent.left
         anchors.verticalCenter: parent.verticalCenter
         pluginId: root.plugin.id
+        defaultOmarchy: root.plugin.firstParty === true && !root.plugin.clonedFrom
         ink: root.ink
         fontFamily: root.host.themeFont
-        width: Style.font.icon
-        height: width
+        width: implicitWidth
+        height: Style.font.icon
       }
       Column {
         id: labels
@@ -97,6 +99,13 @@ Item {
           color: root.ink
           textFormat: Text.PlainText
           elide: Text.ElideRight
+        }
+        PluginKindBadges {
+          id: kindBadges
+          width: parent.width
+          host: root.host
+          kinds: root.plugin.kinds || []
+          foreground: root.ink
         }
         Text {
           objectName: "pluginOperationStatus"
@@ -125,7 +134,7 @@ Item {
         Text {
           width: parent.width
           text: {
-            if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.enabledKind" : "plugin.disabledKind").arg((root.plugin.kinds || []).join(", "))
+            if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.enabled" : "plugin.disabled")
             if (!root.plugin.enabled) return "Disabled · not on the bar"
             if (root.plugin.instances.length > 1) return "Enabled · " + root.plugin.instances.length + " positions"
             var p = root.plugin.instances[0]

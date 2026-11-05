@@ -335,6 +335,11 @@ Column {
           onClicked: root.invoke(row.modelData.directSource ? (row.modelData.installed ? "source-enable" : "source-install") : (row.modelData.installed ? "catalog-enable" : "catalog-install"), row.modelData.directSource ? row.modelData.evaluation : row.modelData.id, false)
         }
       }
+      PluginKindBadges {
+        width: parent.width
+        host: root.host
+        kinds: row.modelData.kinds || []
+      }
       Text {
         width: parent.width
         text: row.modelData.description

@@ -134,9 +134,16 @@ The active version has no reviewer selection, dispatch, report polling or public
 Study the actual interfaces and adapt what serves this plugin. In documentation, give each topic a clear home and keep the path from installation to everyday use short.
 
 Syntax-check each root PHP module with `php -n -l`. The PHP runtime needs no Python process. QtTest checks in `tests/RuntimeCheckTest.qml` exercise missing PHP, the explicit install action and successful reprobe using isolated command fixtures; they do not install system packages. Require zero failing checks. Test scratch must be new or its fixture state reset before repeated pointer tests.
-## Installed plugin kinds
+## Kind badges, filtering and default-plugin icons
 
-The installed inventory includes every valid plugin returned by the running Omarchy registry, including bar-widget, bar, overlay, panel, menu and service kinds. A plugin can declare multiple kinds. isBarWidget and canOpen are explicit capabilities derived from the kinds. Overlays such as Machine Mark must remain visible even though they have no bar position. Non-widget rows show Enabled or Disabled followed by their kinds; movement controls belong only to bar widgets.
+Every installed row and Install result shows kind badges with distinct symbols and translated labels: Bar widget, Full bar, Overlay, Panel, Menu and Service. A plugin can show several badges. Unknown or unspecified listings use Other until source evaluation provides manifest kinds. Badge hover text explains each kind; meaning is conveyed by text and symbols rather than color alone. Badges wrap within the row and remote text stays plain.
+
+The Plugins toolbar places Plugin kinds between Bar position and Sort by. The searchable multi-select defaults to all kinds, has All and None shortcuts, and matches any selected kind. A plugin that matches several selections appears once. Counts describe the filtered result and total inventory; no selection produces a clear empty state. Filtering only changes the current view and never enables, disables or moves plugins. Existing kind-specific Open and bar-movement guards remain authoritative.
+
+Default Omarchy plugins display the Omarchy brand glyph using the omarchy font, followed by their custom icon when the manager has one. Without a custom icon, only the Omarchy logo is shown. The menu logo is not duplicated. Third-party plugins and user clones are not branded as defaults. Default identity is taken from native firstParty and clonedFrom state, not inferred from a name prefix. The existing custom icon and canvas artwork remain in PluginIcon.qml; kind symbols remain separate badges.
+
+Marketplace normalization preserves the catalog kind label as canonical kind values, including combined Service + Bar widget and Menu + Bar widget listings. Source evaluation returns manifest kinds directly. An older catalog cache without kind metadata refreshes on its next load. No verification status or installation eligibility is inferred from a kind badge.
+
 
 An Open button is available for overlay, panel and menu plugins. It is enabled only when the plugin is enabled and the manager is idle. It invokes the native shell summon action with an empty JSON payload and requires an ok acknowledgement. Opening never implicitly enables a plugin. Service-only plugins have no Open action. Registry-protected plugins retain their disable protection. Existing installation, update, source, enable/disable and confirmed uninstall flows apply to all listed kinds.
 

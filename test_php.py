@@ -192,7 +192,8 @@ class PhpParityTests(unittest.TestCase):
                 'verificationCommit': 'a' * 40, 'listingValidatedCommit': 'a' * 40,
                 'upstreamObservedCommit': 'a' * 40, 'repositoryLayout': 'root-plugin', 'installAvailable': True}
         for fields in ({}, {'upstreamObservedCommit': 'b' * 40}, {'repo': 'https://github.com/example/x;touch bad'},
-                       {'verificationCoverage': 'update-unverified'}, {'description': '<b>Literal</b>'}):
+                       {'verificationCoverage': 'update-unverified'}, {'description': '<b>Literal</b>'},
+                       {'kind': 'Service + Bar widget'}, {'kind': 'Menu + Bar widget'}, {'kind': 'Overlay'}, {'kind': 'Suite'}):
             payload = {'plugins': [{**base, **fields}]}
             self.assertEqual(php('Marketplace\\normalize', payload)['result'], marketplace_reference.normalize(payload))
 

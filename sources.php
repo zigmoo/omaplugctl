@@ -88,6 +88,7 @@ function evaluate(string $repo): array {
         git($root,['checkout','--quiet','HEAD']);
         run(['omarchy-plugin-validate',$root]);
         $row=['id'=>$manifest['id'],'name'=>clean_text($manifest['name']??$manifest['id'],160),'description'=>clean_text($manifest['description']??'',1200),'author'=>clean_text(is_string($manifest['author']??null)?$manifest['author']:'',160),'version'=>clean_text($manifest['version']??'',120),'license'=>clean_text($manifest['license']??'',120),'repo'=>$repo,'verified'=>false,'coverage'=>'locally-validated','verifiedCommit'=>$commit,'installable'=>true,'directSource'=>true,'evaluation'=>$token,'validation'=>'Manifest valid; ClamAV found no threats. Commit '.substr($commit,0,12).'.','installed'=>false,'enabled'=>false];
+        $row['kinds']=array_slice($manifest['kinds'],0,32);
         save_json(['entry'=>$row,'commit'=>$commit,'scan'=>$scan,'checkedAt'=>time()],$directory.'/evaluation.json');
         return $row;
     }catch(\Throwable $error){remove_stage($directory);return ['id'=>$repo,'name'=>basename($repo),'repo'=>$repo,'description'=>$error->getMessage(),'author'=>'','verified'=>false,'coverage'=>'validation-failed','installable'=>false,'directSource'=>true,'installed'=>false,'enabled'=>false,'validation'=>'Installation blocked.'];}

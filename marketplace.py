@@ -67,6 +67,9 @@ def normalize(payload):
             'installNote': text(item.get('installNote'), 500),
             **{key: text(item.get(key), 120) for key in ('version', 'license', 'repositoryUpdatedAt')},
             'stars': min(item['stars'], 10000000) if type(item.get('stars')) is int and item['stars'] >= 0 else 0,
+            'kinds': list(dict.fromkeys({'bar widget': 'bar-widget', 'bar': 'bar', 'overlay': 'overlay',
+                                        'panel': 'panel', 'menu': 'menu', 'service': 'service'}.get(part.strip().lower(), 'other')
+                                       for part in text(item.get('kind'), 160).split('+'))),
         }
         entry['searchText'] = ' '.join([pid, entry['name'], entry['description'],
                                       entry['author'], entry['category'], *tags]).lower()
@@ -89,6 +92,7 @@ def read_cache():
                     and all(isinstance(p.get(key), str) for key in ('id', 'name', 'description', 'author', 'searchText', 'coverage', 'repo'))
                     and ID.fullmatch(p['id']) and '..' not in p['id']
                     and type(p.get('verified')) is bool and type(p.get('installable')) is bool
+                    and isinstance(p.get('kinds'), list)
                     and p['coverage'] in ('snapshot-verified', 'update-unverified', 'unverified')
                     for p in value['entries'])):
                 datetime.datetime.fromisoformat(value['fetchedAt'])

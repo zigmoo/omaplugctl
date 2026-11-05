@@ -77,6 +77,7 @@ class SourceTests(unittest.TestCase):
 
     def test_scan_and_install_exact_commit_then_enable_with_readback(self):
         row = self.check(); self.assertTrue(row['installable'], row)
+        self.assertEqual(row['kinds'], ['service'])
         self.assertFalse(row['verified'])
         pinned = row['verifiedCommit']
         (self.upstream / 'later').write_text('new remote commit'); self.commit()

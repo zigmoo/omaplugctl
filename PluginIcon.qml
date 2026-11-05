@@ -5,9 +5,10 @@ import qs.Commons as Commons
 Item {
   id: root
   property string pluginId: ""
+  property bool defaultOmarchy: false
   property color ink: Commons.Color.popups.text
   property string fontFamily: Style.font.family
-  implicitWidth: Style.font.icon
+  implicitWidth: Style.font.icon * (defaultOmarchy && hasOwnIcon ? 2 : 1) + (defaultOmarchy && hasOwnIcon ? Style.space(4) : 0)
   implicitHeight: Style.font.icon
   readonly property string sourceId: pluginId === "moo.dropbox" ? "omarchy.dropbox" : pluginId === "promaa.clock" ? "omarchy.clock" : pluginId === "moo.workspaces" ? "omarchy.workspaces" : pluginId
   readonly property var marks: ({
@@ -22,12 +23,31 @@ Item {
     "crmne.hyprmoncfg": "󰍺", "moo.omathemectl": "󰏘", "moo.omaremotes": "󰢹"
   })
   readonly property bool custom: ["moo.omaplugctl", "omarchy.tailscale", "omarchy.dropbox", "com.80kv.omatris", "bjarneo.ring-light", "com.omastorm.radar"].indexOf(sourceId) >= 0
+  readonly property bool hasOwnIcon: custom || (marks[sourceId] !== undefined && sourceId !== "omarchy.menu")
+  Text {
+    objectName: "omarchyIdentityIcon"
+    visible: root.defaultOmarchy
+    anchors.left: parent.left
+    anchors.verticalCenter: parent.verticalCenter
+    width: root.height
+    text: "\ue900"
+    textFormat: Text.PlainText
+    color: root.ink
+    font.family: "omarchy"
+    font.pixelSize: root.height
+  }
+  Item {
+    objectName: "pluginOwnIdentityIcon"
+    visible: !root.defaultOmarchy || root.hasOwnIcon
+    anchors.right: parent.right
+    width: root.defaultOmarchy ? root.height : root.width
+    height: root.height
   Text {
     anchors.centerIn: parent
     visible: !root.custom
     text: root.marks[root.sourceId] || "󰐱"
     color: root.ink
-    font.family: root.fontFamily
+    font.family: root.sourceId === "omarchy.menu" ? "omarchy" : root.fontFamily
     font.pixelSize: Math.min(root.width, root.height)
     textFormat: Text.PlainText
   }
@@ -72,5 +92,6 @@ Item {
         c.beginPath(); c.moveTo(12,12); c.lineTo(19,5); c.stroke()
       }
     }
+  }
   }
 }

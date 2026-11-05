@@ -8,6 +8,11 @@ const MAX_BYTES=33554432;
 const MAX_PLUGINS=10000;
 function cache_path(): string{return state_root().'/marketplace.json';}
 function valid_repo(mixed $repo): bool{return is_string($repo)&&preg_match('~\Ahttps://github\.com/[A-Za-z0-9_-]+/[A-Za-z0-9_.-]+(?:\.git)?\z~D',$repo)===1;}
+function catalog_kinds(mixed $label): array {
+    $known=['bar widget'=>'bar-widget','bar'=>'bar','overlay'=>'overlay','panel'=>'panel','menu'=>'menu','service'=>'service'];$result=[];
+    foreach(explode('+',clean_text($label,160))as$part)$result[]=$known[strtolower(trim($part))]??'other';
+    return array_values(array_unique($result));
+}
 function normalize(mixed $payload): array {
     if(!is_array($payload)||!isset($payload['plugins'])||!is_array($payload['plugins'])||!array_is_list($payload['plugins']))throw new \InvalidArgumentException('The marketplace returned an invalid catalog.');
     if(count($payload['plugins'])>MAX_PLUGINS)throw new \InvalidArgumentException('The marketplace catalog exceeds the plugin limit.');
@@ -24,6 +29,7 @@ function normalize(mixed $payload): array {
         $entry=['id'=>$id,'name'=>clean_text($item['name']??'',160)?:$id,'description'=>clean_text($item['description']??'',1200),'author'=>clean_text($item['author']??'',160),'tags'=>$tags,'category'=>clean_text($item['category']??'',80),'repo'=>$repo,'verified'=>$verified,'coverage'=>$coverage,'verifiedCommit'=>$snapshot,'installable'=>$repo!==''&&($item['installAvailable']??null)===true&&($item['repositoryLayout']??'')==='root-plugin','installNote'=>clean_text($item['installNote']??'',500)];
         foreach(['version','license','repositoryUpdatedAt']as$key)$entry[$key]=clean_text($item[$key]??'',120);
         $entry['stars']=is_int($item['stars']??null)&&$item['stars']>=0?min($item['stars'],10000000):0;
+        $entry['kinds']=catalog_kinds($item['kind']??'');
         $entry['searchText']=fold(implode(' ',[$id,$entry['name'],$entry['description'],$entry['author'],$entry['category'],...$tags]));$entries[]=$entry;
     }
     if(!$entries)throw new \InvalidArgumentException('The marketplace catalog contains no community plugins.');
@@ -33,7 +39,7 @@ function read_cache(): ?array {
     $value=json_file(cache_path(),null,MAX_BYTES);
     if(!is_array($value)||($value['schema']??null)!==1||!is_array($value['entries']??null)||!array_is_list($value['entries'])||count($value['entries'])>MAX_PLUGINS||!is_string($value['fetchedAt']??null)||strtotime($value['fetchedAt'])===false)return null;
     foreach($value['entries']as$row) {
-        if(!is_array($row)||!valid_id($row['id']??null)||!is_bool($row['verified']??null)||!is_bool($row['installable']??null)||!in_array($row['coverage']??'',['snapshot-verified','update-unverified','unverified'],true))return null;
+        if(!is_array($row)||!valid_id($row['id']??null)||!is_bool($row['verified']??null)||!is_bool($row['installable']??null)||!in_array($row['coverage']??'',['snapshot-verified','update-unverified','unverified'],true)||!is_array($row['kinds']??null))return null;
         foreach(['id','name','description','author','searchText','coverage','repo']as$key)if(!is_string($row[$key]??null))return null;
     }
     return $value;

@@ -11,6 +11,26 @@ except FileNotFoundError:
     saved = {'installed': False, 'enabled': False}
 action = sys.argv[1]
 time.sleep(0.25)
+if action == 'source-details':
+    print(json.dumps({'ok': True, 'repo': sys.argv[2], 'details': {
+        'lastCommitAt': '2026-11-05T12:00:00Z', 'commit': 'b' * 40,
+        'commitAuthor': '<b>Commit Person</b>', 'commitSubject': 'Latest change', 'error': ''}}))
+    sys.exit()
+if action.startswith('source-'):
+    if action == 'source-check':
+        row = {'id': 'example.url', 'name': '<b>URL Plugin</b>', 'description': 'Evaluated source',
+               'author': 'Person', 'repo': 'https://github.com/example/url', 'verified': False,
+               'coverage': 'locally-validated', 'installable': True, 'directSource': True,
+               'evaluation': 'a' * 32, 'validation': 'Manifest valid; scanned commit abc123.',
+               'installed': False, 'enabled': False}
+        saved['source'] = row
+    else:
+        row = saved['source']
+        if action == 'source-install': row['installed'] = True
+        if action == 'source-enable': row['enabled'] = True
+    path.write_text(json.dumps(saved))
+    print(json.dumps({'ok': True, 'sourceEntries': [row], 'message': 'Source action confirmed.'}))
+    sys.exit()
 if action == 'catalog-install':
     saved['installed'] = True
 if action == 'catalog-enable':

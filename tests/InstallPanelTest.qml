@@ -41,6 +41,7 @@ ShellRoot {
         tryCompare(panel, "busy", false, 5000)
         panel.verifiedOnly = true
         panel.focusTarget.text = ""
+        mouseMove(panel.focusTarget, panel.focusTarget.width / 2, panel.focusTarget.height / 2)
         wait(30)
       }
       function list() { return findChild(panel, "installResultsList") }
@@ -147,6 +148,57 @@ ShellRoot {
         } finally { panel.entries=original }
       }
       function cleanup() { console.log("INSTALL TEST", qtest_results.functionName, qtest_results.failed) }
+      function test_08_url_evaluation_install_and_enable() {
+        panel.focusTarget.text = "https://github.com/example/url"
+        compare(panel.results.length, 0)
+        verify(!findChild(panel, "verifiedOnlyButton").visible)
+        wait(50)
+        mouseClick(findChild(panel, "evaluateSourceButton"))
+        verify(panel.busy)
+        compare(panel.results.length, 0)
+        tryVerify(function() { return !panel.busy && panel.results.length === 1 }, 5000)
+        grabImage(window.contentItem).save(Qt.resolvedUrl("url-install-test.png").toString().replace(/^file:\/\//, ""))
+        verify(panel.verifiedOnly) // Local validation is separate from catalog verification.
+        compare(panel.results[0].name, "<b>URL Plugin</b>")
+        wait(50)
+        let button = findChild(list().itemAtIndex(0), "catalogInstallButton")
+        verify(button.enabled)
+        mouseClick(button)
+        verify(panel.busy)
+        verify(!panel.results[0].installed)
+        tryVerify(function() { return !panel.busy && panel.results[0].installed }, 5000)
+        verify(!panel.results[0].enabled)
+        wait(50)
+        mouseClick(findChild(list().itemAtIndex(0), "catalogInstallButton"))
+        tryVerify(function() { return !panel.busy && panel.results[0].enabled }, 5000)
+        panel.focusTarget.text = "https://github.com/example/other"
+        compare(panel.results.length, 0)
+      }
+      function test_09_edit_during_evaluation_drops_stale_result() {
+        panel.focusTarget.text = "https://github.com/example/url"
+        panel.focusTarget.forceActiveFocus()
+        keyClick(Qt.Key_Return)
+        verify(panel.busy)
+        panel.focusTarget.text = "https://github.com/example/changed"
+        tryCompare(panel, "busy", false, 5000)
+        compare(panel.results.length, 0)
+      }
+      function test_10_hover_details_and_click_to_visit() {
+        panel.repositoryDetails = ({})
+        panel.focusTarget.text = "radio"
+        wait(100)
+        let row = list().itemAtIndex(0)
+        mouseMove(row, 15, row.height - 10)
+        tryVerify(function() { return !!panel.repositoryDetails[panel.results[0].repo] }, 5000)
+        let popup = findChild(row, "catalogDetailsPopup")
+        tryCompare(popup, "visible", true, 5000)
+        verify(panel.detailsText(panel.results[0]).indexOf("Last commit:") !== -1)
+        verify(panel.detailsText(panel.results[0]).indexOf("<b>Commit Person</b>") !== -1)
+        grabImage(window.contentItem).save(Qt.resolvedUrl("catalog-hover-test.png").toString().replace(/^file:\/\//, ""))
+        let button = findChild(popup.contentItem, "catalogVisitButton")
+        mouseClick(button)
+        tryCompare(panel, "message", "Opened fixture source.", 5000)
+      }
       function cleanupTestCase() {
         console.log("INSTALL UI FAIL COUNT", qtest_results.failCount)
         Qt.callLater(function() { Qt.quit() })

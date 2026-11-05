@@ -65,6 +65,8 @@ def normalize(payload):
             'installable': bool(repo and item.get('installAvailable') is True
                                 and item.get('repositoryLayout') == 'root-plugin'),
             'installNote': text(item.get('installNote'), 500),
+            **{key: text(item.get(key), 120) for key in ('version', 'license', 'repositoryUpdatedAt')},
+            'stars': min(item['stars'], 10000000) if type(item.get('stars')) is int and item['stars'] >= 0 else 0,
         }
         entry['searchText'] = ' '.join([pid, entry['name'], entry['description'],
                                       entry['author'], entry['category'], *tags]).lower()

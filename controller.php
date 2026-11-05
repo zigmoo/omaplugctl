@@ -6,6 +6,7 @@ require_once __DIR__.'/runtime.php';
 require_once __DIR__.'/updates.php';
 require_once __DIR__.'/malware.php';
 require_once __DIR__.'/marketplace.php';
+require_once __DIR__.'/sources.php';
 require_once __DIR__.'/metadata.php';
 require_once __DIR__.'/manager.php';
 
@@ -23,6 +24,11 @@ function main(array $argv): int {
             try{apply_update($id);return 0;}catch(\Throwable $error){Updates\save_operation($id,['status'=>'error','message'=>shorten($error->getMessage(),1200)]);return 1;}
         }
         $data=match($action){
+            'source-check'=>Sources\check($id),
+            'source-install'=>Sources\install($id),
+            'source-enable'=>Sources\enable($id),
+            'source-open'=>Sources\open($id),
+            'source-details'=>Sources\details($id),
             'catalog'=>Marketplace\state($options['refresh']),
             'catalog-install'=>Marketplace\install($id),
             'catalog-enable'=>Marketplace\enable($id),

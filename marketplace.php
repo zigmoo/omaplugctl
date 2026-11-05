@@ -22,6 +22,8 @@ function normalize(mixed $payload): array {
         $coverage=$verified?'snapshot-verified':($snapshot!==''&&($item['verificationCoverage']??'')==='update-unverified'?'update-unverified':'unverified');
         $tags=is_array($item['tags']??null)?array_map(fn($tag)=>clean_text($tag,60),array_slice($item['tags'],0,20)):[];
         $entry=['id'=>$id,'name'=>clean_text($item['name']??'',160)?:$id,'description'=>clean_text($item['description']??'',1200),'author'=>clean_text($item['author']??'',160),'tags'=>$tags,'category'=>clean_text($item['category']??'',80),'repo'=>$repo,'verified'=>$verified,'coverage'=>$coverage,'verifiedCommit'=>$snapshot,'installable'=>$repo!==''&&($item['installAvailable']??null)===true&&($item['repositoryLayout']??'')==='root-plugin','installNote'=>clean_text($item['installNote']??'',500)];
+        foreach(['version','license','repositoryUpdatedAt']as$key)$entry[$key]=clean_text($item[$key]??'',120);
+        $entry['stars']=is_int($item['stars']??null)&&$item['stars']>=0?min($item['stars'],10000000):0;
         $entry['searchText']=fold(implode(' ',[$id,$entry['name'],$entry['description'],$entry['author'],$entry['category'],...$tags]));$entries[]=$entry;
     }
     if(!$entries)throw new \InvalidArgumentException('The marketplace catalog contains no community plugins.');
@@ -59,7 +61,7 @@ function installed_plugins(): array {
 function state(bool $refresh=false): array {
     [$catalog,$warning]=load($refresh);$installed=installed_plugins();$entries=[];
     foreach($catalog['entries']as$row)$entries[]=[...$row,'installed'=>isset($installed[$row['id']]),'enabled'=>($installed[$row['id']]['enabled']??false)===true];
-    return ['entries'=>$entries,'fetchedAt'=>$catalog['fetchedAt'],'message'=>$warning];
+    return ['entries'=>$entries,'fetchedAt'=>$catalog['fetchedAt'],'catalogStale'=>time()-strtotime($catalog['fetchedAt'])>86400,'message'=>$warning];
 }
 function entry(?string $id): array {
     if(!valid_id($id))throw new \InvalidArgumentException('Invalid marketplace plugin id.');

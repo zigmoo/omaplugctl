@@ -134,3 +134,12 @@ The active version has no reviewer selection, dispatch, report polling or public
 Study the actual interfaces and adapt what serves this plugin. In documentation, give each topic a clear home and keep the path from installation to everyday use short.
 
 Syntax-check each root PHP module with `php -n -l`. The PHP runtime needs no Python process. QtTest checks in `tests/RuntimeCheckTest.qml` exercise missing PHP, the explicit install action and successful reprobe using isolated command fixtures; they do not install system packages. Require zero failing checks. Test scratch must be new or its fixture state reset before repeated pointer tests.
+## Installed plugin kinds
+
+The installed inventory includes every valid plugin returned by the running Omarchy registry, including bar-widget, bar, overlay, panel, menu and service kinds. A plugin can declare multiple kinds. isBarWidget and canOpen are explicit capabilities derived from the kinds. Overlays such as Machine Mark must remain visible even though they have no bar position. Non-widget rows show Enabled or Disabled followed by their kinds; movement controls belong only to bar widgets.
+
+An Open button is available for overlay, panel and menu plugins. It is enabled only when the plugin is enabled and the manager is idle. It invokes the native shell summon action with an empty JSON payload and requires an ok acknowledgement. Opening never implicitly enables a plugin. Service-only plugins have no Open action. Registry-protected plugins retain their disable protection. Existing installation, update, source, enable/disable and confirmed uninstall flows apply to all listed kinds.
+
+Inventory rendering uses a request-scoped Git read snapshot to share repeated read-only repository queries across plugins in the same checkout. The cache exists only within one inventory call and is discarded on success or failure. Update execution and later confirmations read fresh state. A regression check verifies that duplicate HEAD reads are reused within a snapshot, while a commit between snapshots is observed by the next snapshot and by direct reads.
+
+

@@ -125,11 +125,14 @@ Item {
         Text {
           width: parent.width
           text: {
+            if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.enabledKind" : "plugin.disabledKind").arg((root.plugin.kinds || []).join(", "))
             if (!root.plugin.enabled) return "Disabled · not on the bar"
             if (root.plugin.instances.length > 1) return "Enabled · " + root.plugin.instances.length + " positions"
             var p = root.plugin.instances[0]
             return p ? "Position: " + p.section.charAt(0).toUpperCase() + p.section.slice(1) + " · slot " + (p.index + 1) : "Enabled · not on the bar"
           }
+          objectName: "pluginPositionStatus"
+          textFormat: Text.PlainText
           font.family: root.host.themeFont
           font.pixelSize: Style.font.caption
           color: Qt.darker(root.ink, 1.4)
@@ -149,6 +152,17 @@ Item {
           host: root.host
           enabled: root.available && (!root.plugin.operation || root.plugin.operation.status !== "working")
           onClicked: root.host.updatePlugin(root.plugin)
+        }
+        Ui.PanelActionButton {
+          objectName: "pluginOpenButton"
+          visible: !!root.plugin.canOpen
+          iconText: "󰏋"
+          tooltipText: root.host.text("plugin.open")
+          fontFamily: root.host.themeFont
+          foreground: root.ink
+          focusable: true
+          enabled: root.available && root.plugin.enabled
+          onClicked: root.host.invoke("open", root.plugin.id)
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
@@ -172,7 +186,7 @@ Item {
         Ui.PanelActionButton {
           iconText: root.expanded ? "󰅀" : "󰇙"
           objectName: "pluginMoreButton"
-          tooltipText: root.expanded ? "Close controls" : "Move or uninstall " + root.plugin.name
+          tooltipText: root.expanded ? "Close controls" : root.plugin.isBarWidget ? "Move or uninstall " + root.plugin.name : root.host.text("plugin.controls")
           fontFamily: root.host.themeFont
           foreground: root.ink
           focusable: true
@@ -186,10 +200,11 @@ Item {
       visible: root.expanded
       spacing: Style.space(4)
       Repeater {
-        model: root.plugin.instances
+        model: root.plugin.isBarWidget ? root.plugin.instances : []
         delegate: Row {
           required property var modelData
           id: location
+          objectName: "pluginMoveInstance"
           width: body.width
           spacing: Style.space(5)
           Text {

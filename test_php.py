@@ -83,6 +83,26 @@ class PhpRepositoryTests(unittest.TestCase):
         self.command('git', '-C', str(self.installed), 'remote', 'set-url', 'origin', str(self.base / 'unavailable'))
         self.assertEqual(self.check()['status'], 'error')
 
+    def test_inventory_git_cache_is_scoped_to_one_snapshot(self):
+        import shlex
+        calls = self.base / 'git-calls.txt'
+        wrapper = self.base / 'bin/git'
+        wrapper.write_text('#!/bin/bash\nprintf "call\\n" >> ' + shlex.quote(str(calls)) + '\nexec /usr/bin/git "$@"\n')
+        wrapper.chmod(0o755)
+        script = r'''require $argv[1]; $root=$argv[2];
+        $read=fn()=>OmaPlugCtl\Updates\git($root,['rev-parse','HEAD']);
+        $first=OmaPlugCtl\Updates\read_snapshot(fn()=>[$read(),$read()]);
+        OmaPlugCtl\Updates\git($root,['commit','--quiet','--allow-empty','-m','Changed between reads']);
+        $second=OmaPlugCtl\Updates\read_snapshot($read); $fresh=$read();
+        echo json_encode([$first,$second,$fresh]);'''
+        result = subprocess.run(['php', '-n', '-r', script, str(ROOT / 'controller.php'), str(self.installed)],
+                                capture_output=True, text=True, check=True)
+        self.assertEqual(result.stderr, '')
+        first, second, fresh = json.loads(result.stdout)
+        self.assertEqual(first[0], first[1]); self.assertNotEqual(first[0], second)
+        self.assertEqual(second, fresh)
+        self.assertEqual(len(calls.read_text().splitlines()), 4)
+
     def test_real_scan_detection_preserves_checkout(self):
         (self.writer / 'detected.txt').write_text('EICAR-PHP-FIXTURE')
         self.commit(self.writer, 'Detected fixture'); self.command('git', '-C', str(self.writer), 'push')
@@ -301,6 +321,52 @@ class PhpNativeStateTests(unittest.TestCase):
         self.assertTrue(result['ok']); self.assertTrue(result['entries'][0]['installed']); self.assertFalse(result['entries'][0]['enabled'])
         self.assertTrue(self.invoke('catalog-enable', 'example.music')['entries'][0]['enabled'])
         self.assertFalse(self.invoke('catalog-install', 'example.music')['ok'])
+
+    def add_plugin(self, pid, kinds, enabled=True, can_disable=True):
+        directory = self.base / '.config/omarchy/plugins' / pid
+        directory.mkdir()
+        (directory / 'manifest.json').write_text(json.dumps({
+            'id': pid, 'name': pid, 'author': 'Fixture', 'kinds': kinds, 'entryPoints': {}}))
+        state = json.loads(self.native_path.read_text())
+        state['plugins'].append(dict(id=pid, name=pid, kinds=kinds, enabled=enabled,
+                                     firstParty=False, canDisable=can_disable))
+        self.native_path.write_text(json.dumps(state))
+
+    def test_inventory_includes_all_plugin_kinds_with_correct_capabilities(self):
+        for kind in ('overlay', 'panel', 'menu', 'service', 'bar'):
+            self.add_plugin('example.' + kind, [kind])
+        rows = {p['id']: p for p in self.invoke('list')['plugins']}
+        for kind in ('overlay', 'panel', 'menu', 'service', 'bar'):
+            row = rows['example.' + kind]
+            self.assertFalse(row['isBarWidget'])
+            self.assertEqual(row['canOpen'], kind in ('overlay', 'panel', 'menu'))
+            self.assertEqual(row['instances'], [])
+        self.assertTrue(rows['example.radio']['isBarWidget'])
+        self.assertFalse(rows['example.radio']['canOpen'])
+
+    def test_overlay_enable_open_disable_and_remove(self):
+        self.add_plugin('example.overlay', ['overlay'], enabled=False)
+        self.assertFalse(self.invoke('open', 'example.overlay')['ok'])
+        self.assertTrue(self.invoke('enable', 'example.overlay')['ok'])
+        self.assertTrue(self.invoke('open', 'example.overlay')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['summons'], [['example.overlay', '{}']])
+        self.assertTrue(self.invoke('disable', 'example.overlay')['ok'])
+        self.assertTrue(self.invoke('remove', 'example.overlay', '--confirmed')['ok'])
+
+    def test_service_open_bar_moves_and_protected_disables_are_rejected(self):
+        self.add_plugin('example.service', ['service'])
+        self.add_plugin('example.overlay', ['overlay'])
+        self.add_plugin('example.protected', ['bar'], can_disable=False)
+        self.assertFalse(self.invoke('open', 'example.service')['ok'])
+        self.assertFalse(self.invoke('disable', 'example.protected')['ok'])
+        self.assertFalse(self.invoke('move', 'example.overlay', '--section', 'left', '--source', 'right', '--index', '0')['ok'])
+        self.assertNotIn('summons', json.loads(self.native_path.read_text()))
+
+    def test_open_requires_shell_acknowledgement(self):
+        self.add_plugin('example.overlay', ['overlay'])
+        state = json.loads(self.native_path.read_text()); state['summonError'] = True
+        self.native_path.write_text(json.dumps(state))
+        self.assertFalse(self.invoke('open', 'example.overlay')['ok'])
 
     def test_detached_update_finishes_after_launcher_returns(self):
         import time

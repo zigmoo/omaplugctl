@@ -3,10 +3,20 @@ declare(strict_types=1);
 namespace OmaPlugCtl\Updates;
 use function OmaPlugCtl\{state_root,json_file,save_json,raw_run,run,locked,relative_path,now,process_result,ensure_directory};
 
+/** One inventory read may inspect many plugins in the same Omarchy checkout. */
+function &read_snapshot_cache(): ?array {static $cache=null;return $cache;}
+function read_snapshot(callable $read): mixed {
+    $cache=&read_snapshot_cache();$previous=$cache;$cache=[];
+    try{return $read();}finally{$cache=$previous;}
+}
 function git(string $directory,array $args,int $timeout=10,?string $body=null,bool $raw=false): string {
+    $cache=&read_snapshot_cache();
+    $readOnly=$body===null&&(in_array($args[0]??'',['rev-parse','status','log'],true)||($args[0]??'')==='remote'&&($args[1]??'')==='get-url'||($args[0]??'')==='branch'&&($args[1]??'')==='--show-current'||($args[0]??'')==='config'&&($args[1]??'')==='--get');
+    $key=serialize([$directory,$args,$raw]);
+    if($cache!==null&&$readOnly&&array_key_exists($key,$cache)){if($cache[$key]instanceof \Throwable)throw $cache[$key];return $cache[$key];}
     $env=[...getenv(),'GIT_TERMINAL_PROMPT'=>'0','GIT_SSH_COMMAND'=>'ssh -oBatchMode=yes -oConnectTimeout=7'];
-    try { $value=raw_run(['git','-C',$directory,...$args],$timeout,$body,$env,67108864);return $raw?$value:trim($value); }
-    catch (\Throwable $error) { throw new \RuntimeException('Could not read or contact the source repository.',0,$error); }
+    try { $value=raw_run(['git','-C',$directory,...$args],$timeout,$body,$env,67108864);$value=$raw?$value:trim($value);if($cache!==null&&$readOnly)$cache[$key]=$value;return $value; }
+    catch (\Throwable $error) { $failure=new \RuntimeException('Could not read or contact the source repository.',0,$error);if($cache!==null&&$readOnly)$cache[$key]=$failure;throw $failure; }
 }
 function cache_path(): string { return state_root().'/updates.json'; }
 function load_cache(): array { $value=json_file(cache_path());return is_array($value)?$value:[]; }

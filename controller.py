@@ -380,8 +380,10 @@ def inventory():
     layout = config.get('bar', {}).get('layout', {})
     result = []
     for p in plugins:
-        if 'bar-widget' not in p['kinds']:
+        if not isinstance(p, dict) or not isinstance(p.get('kinds'), list):
             continue
+        p['isBarWidget'] = 'bar-widget' in p['kinds']
+        p['canOpen'] = bool(set(p['kinds']) & {'overlay', 'panel', 'menu'})
         instances = []
         for section in SECTIONS:
             for index, entry in enumerate(layout.get(section, [])):
@@ -499,9 +501,17 @@ def about_url(p):
 def execute(action, pid, section=None, source=None, index=None, confirmed=False):
     before = inventory()
     p = next((p for p in before if p['id'] == pid), None)
-    if not p: raise ValueError('Unknown bar plugin.')
+    if not p: raise ValueError('Unknown plugin.')
     if p.get('isSelf') and action in ('disable', 'remove'):
         raise ValueError('OmaPlugCtl must remain enabled to manage plugins.')
+    if action == 'disable' and p.get('canDisable') is False:
+        raise ValueError('This plugin must remain enabled.')
+    if action == 'open':
+        if not p.get('enabled') or not set(p['kinds']) & {'overlay', 'panel', 'menu'}:
+            raise ValueError('Enable a panel, overlay or menu plugin before opening it.')
+        if run(['omarchy-shell', 'shell', 'summon', pid, '{}']) != 'ok':
+            raise RuntimeError('The shell did not accept the open request.')
+        return {'plugins': before, 'message': 'Open requested.'}
     if action == 'about':
         url = about_url(p)
         run(['xdg-open', url])
@@ -512,6 +522,8 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
     elif action in ('enable', 'disable'):
         run(['omarchy-plugin-' + action, pid])
     elif action == 'move':
+        if 'bar-widget' not in p['kinds']:
+            raise ValueError('Only bar widgets can be moved on the bar.')
         if section not in SECTIONS or source not in SECTIONS or index is None:
             raise ValueError('Move requires destination and source instance.')
         if {'section': source, 'index': index} not in p['instances']:
@@ -539,7 +551,7 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['catalog', 'catalog-install', 'catalog-enable', 'catalog-source', 'list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about'])
+    parser.add_argument('action', choices=['catalog', 'catalog-install', 'catalog-enable', 'catalog-source', 'list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about', 'open'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)

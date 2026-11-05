@@ -78,11 +78,16 @@ function sort_plugins(array $plugins,string $order): array {
     usort($plugins,fn($a,$b)=>$key($a)<=>$key($b));return $plugins;
 }
 function inventory(): array {
+    return Updates\read_snapshot(fn()=>inventory_snapshot());
+}
+function inventory_snapshot(): array {
     $plugins=json_decode(run(['omarchy-shell','shell','listPlugins']),true,512,JSON_THROW_ON_ERROR);
     if(!is_array($plugins)||!array_is_list($plugins)||count($plugins)>10000)throw new \RuntimeException('Could not read the running plugins.');
     $metadata=metadata_map();$updateCache=Updates\load_cache();$operations=Updates\operations();$history=author_cache();$previous=$history;$layout=config()['bar']['layout']??[];$result=[];
     foreach($plugins as$p){
-        if(!is_array($p)||!in_array('bar-widget',$p['kinds']??[],true))continue;$id=$p['id'];$instances=[];
+        if(!is_array($p)||!valid_id($p['id']??null)||!is_array($p['kinds']??null))continue;$id=$p['id'];$instances=[];
+        $p['isBarWidget']=in_array('bar-widget',$p['kinds'],true);
+        $p['canOpen']=(bool)array_intersect(['overlay','panel','menu'],$p['kinds']);
         foreach(SECTIONS as$section)foreach($layout[$section]??[]as$index=>$entry){$eid=is_string($entry)?$entry:($entry['id']??'');if($eid===$id)$instances[]=['section'=>$section,'index'=>$index];}
         $p['instances']=$instances;$p['description']=plugin_description($metadata[$id]??[]);$p=[...$p,...plugin_details($metadata[$id]??[],$history)];
         $p['isSelf']=$id===SELF;$p['canDisable']=!$p['isSelf']&&($p['canDisable']??true);$p['canRemove']=!$p['isSelf']&&empty($p['firstParty'])&&file_exists(home().'/.config/omarchy/plugins/'.$id);
@@ -97,7 +102,7 @@ function check_updates(): array {
 }
 function update_target(?string $id): array {
     validate_id($id);$plugin=null;foreach(inventory()as$p)if($p['id']===$id){$plugin=$p;break;}
-    if($plugin===null)throw new \InvalidArgumentException('Unknown bar plugin.');
+    if($plugin===null)throw new \InvalidArgumentException('Unknown plugin.');
     $source=Updates\source($plugin,metadata_map()[$id]??[]);
     if($source===null){if(!empty($plugin['firstParty'])&&empty($plugin['clonedFrom']))return [$plugin,null];throw new \RuntimeException('No independent Git update repository is configured for this plugin.');}
     if($source['dirty'])throw new \RuntimeException('This source has local changes. Review them before updating; no files were changed.');
@@ -136,12 +141,19 @@ function about_url(array $plugin): string {
     throw new \RuntimeException('No source page found for this plugin.');
 }
 function execute(string $action,?string $id,?string $section=null,?string $source=null,?int $index=null,bool $confirmed=false): array {
-    validate_id($id);$before=inventory();$p=null;foreach($before as$row)if($row['id']===$id){$p=$row;break;}if(!$p)throw new \InvalidArgumentException('Unknown bar plugin.');
+    validate_id($id);$before=inventory();$p=null;foreach($before as$row)if($row['id']===$id){$p=$row;break;}if(!$p)throw new \InvalidArgumentException('Unknown plugin.');
     if(!empty($p['isSelf'])&&in_array($action,['disable','remove'],true))throw new \InvalidArgumentException('OmaPlugCtl must remain enabled to manage plugins.');
+    if($action==='disable'&&($p['canDisable']??true)===false)throw new \InvalidArgumentException('This plugin must remain enabled.');
+    if($action==='open'){
+        if(empty($p['enabled'])||!array_intersect(['overlay','panel','menu'],$p['kinds']))throw new \InvalidArgumentException('Enable a panel, overlay or menu plugin before opening it.');
+        $output=run(['omarchy-shell','shell','summon',$id,'{}']);if($output!=='ok')throw new \RuntimeException('The shell did not accept the open request.');
+        return ['plugins'=>$before,'message'=>'Open requested.'];
+    }
     if($action==='about'){run(['xdg-open',about_url($p)]);return ['plugins'=>$before,'message'=>'Opened source page.'];}
     if($action==='remove'){if(empty($p['canRemove'])||!$confirmed)throw new \InvalidArgumentException('Uninstall requires confirmation and an installed third-party plugin.');run(['omarchy-plugin-remove',$id,'--yes']);}
     elseif(in_array($action,['enable','disable'],true))run(['omarchy-plugin-'.$action,$id]);
     elseif($action==='move'){
+        if(!in_array('bar-widget',$p['kinds'],true))throw new \InvalidArgumentException('Only bar widgets can be moved on the bar.');
         if(!in_array($section,SECTIONS,true)||!in_array($source,SECTIONS,true)||$index===null)throw new \InvalidArgumentException('Move requires destination and source instance.');
         if(!in_array(['section'=>$source,'index'=>$index],$p['instances'],true))throw new \InvalidArgumentException('Widget layout changed; refresh and select again.');
         $output=run(['omarchy-shell','shell','moveBarWidget',$id,json_encode(['section'=>$section,'fromSection'=>$source,'fromIndex'=>$index],JSON_THROW_ON_ERROR)]);if($output!=='ok')throw new \RuntimeException($output);

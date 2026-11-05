@@ -43,7 +43,7 @@ function main(array $argv): int {
             'set-scan'=>response(set_scan_before_update($id)),
             'check-updates'=>response(check_updates()),
             'update'=>response(launch_update($id)),
-            'enable','disable','move','remove','about'=>response(execute($action,$id,$options['section']??null,$options['source']??null,isset($options['index'])?(int)$options['index']:null,$options['confirmed'])),
+            'enable','disable','move','remove','about','open'=>response(execute($action,$id,$options['section']??null,$options['source']??null,isset($options['index'])?(int)$options['index']:null,$options['confirmed'])),
             default=>throw new \InvalidArgumentException('Unknown action.'),
         };
         echo json_encode(['ok'=>true,...$data],JSON_THROW_ON_ERROR|JSON_INVALID_UTF8_SUBSTITUTE|JSON_UNESCAPED_UNICODE),PHP_EOL;return 0;

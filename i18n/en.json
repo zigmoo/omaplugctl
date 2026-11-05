@@ -113,5 +113,9 @@
   "install.visit": "Visit repository",
   "install.unknown": "Unknown",
   "install.commitUnavailable": "Unavailable",
-  "install.commitLoading": "Loading…"
+  "install.commitLoading": "Loading…",
+  "plugin.enabledKind": "Enabled · %1",
+  "plugin.disabledKind": "Disabled · %1",
+  "plugin.open": "Open plugin",
+  "plugin.controls": "Plugin controls"
 }

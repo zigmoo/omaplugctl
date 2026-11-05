@@ -69,6 +69,9 @@ elif name == 'omarchy' and args[:2] == ['plugin', 'enable']:
                 plugin['enabled'] = True
 elif name == 'omarchy-shell' and args == ['shell', 'rescanPlugins']:
     print('ok')
+elif name == 'omarchy-shell' and args[:2] == ['shell', 'summon']:
+    state.setdefault('summons', []).append(args[2:])
+    print('unavailable' if state.get('summonError') else 'ok')
 else:
     raise SystemExit('Unsupported fixture call: ' + repr((name, args)))
 

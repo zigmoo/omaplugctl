@@ -31,7 +31,7 @@ Each row shows a plugin’s name, bar position and update status. Hover the row 
 
 | Control | Action |
 | --- | --- |
-| Pause or play | Disable or enable the plugin. |
+| Pause or play | Disable or enable plugins that support this action. |
 | Update arrows | Update this plugin when a source update is available. Hover for the latest change date and up to three commit subjects. |
 | Information | Open the plugin’s source page. |
 | Three dots | Move an instance to another bar section, or uninstall an installed third-party plugin. |
@@ -40,7 +40,9 @@ Uninstall asks for confirmation and removes the plugin’s local checkout. Disab
 
 If a plugin provides no meaningful author attribution, OmaPlugCtl traces its manifest and entry-point files through Git history to their first recorded commits. The hover footer identifies the author and commit; shallow histories are labeled as the earliest available record.
 
-## Move the bar
+## Switch or move the bar
+
+Full-bar plugins such as Station stay active until you choose another bar. Run `omarchy bar reset` to return to the built-in bar, or `omarchy bar use yakumy.station` to switch back to Station. Both commands keep the plugin installed.
 
 Click an edge of the little screen diagram to move the bar there. The highlighted edge is the current position; the other three remain faintly visible.
 

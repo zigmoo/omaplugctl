@@ -148,5 +148,3 @@ Marketplace normalization preserves the catalog kind label as canonical kind val
 An Open button is available for overlay, panel and menu plugins. It is enabled only when the plugin is enabled and the manager is idle. It invokes the native shell summon action with an empty JSON payload and requires an ok acknowledgement. Opening never implicitly enables a plugin. Service-only plugins have no Open action. Registry-protected plugins retain their disable protection. Existing installation, update, source, enable/disable and confirmed uninstall flows apply to all listed kinds.
 
 Inventory rendering uses a request-scoped Git read snapshot to share repeated read-only repository queries across plugins in the same checkout. The cache exists only within one inventory call and is discarded on success or failure. Update execution and later confirmations read fresh state. A regression check verifies that duplicate HEAD reads are reused within a snapshot, while a commit between snapshots is observed by the next snapshot and by direct reads.
-
-

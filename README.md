@@ -1,6 +1,6 @@
 # OmaPlugCtl
 
-Find, install, enable, arrange and update Omarchy plugins from one menu.
+Find, install, enable, arrange and update Omarchy plugins from one menu. Licensed under Apache-2.0. See [LICENSE](LICENSE).
 
 Click the plug icon in the bar to see what is running, move the bar to another screen edge, or update an installed plugin without leaving the menu.
 

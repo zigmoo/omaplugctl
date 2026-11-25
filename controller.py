@@ -5,6 +5,7 @@ import updates
 import malware
 import marketplace
 SELF = 'moo.omaplugctl'
+DEFAULT_BAR = 'omarchy.bar'
 SECTIONS = ('left', 'centerBegin', 'center', 'centerEnd', 'right', 'tray')
 EDGES = ('top', 'bottom', 'left', 'right')
 SORT_ORDERS = ('name', 'screen', 'updates')
@@ -171,8 +172,8 @@ def builtin_metadata(pid):
             return {**manifest, 'sourceDir': str(path.parent), 'manifestPath': str(path)}
     return {}
 
-def run(argv):
-    p = subprocess.run(argv, capture_output=True, text=True, timeout=25)
+def run(argv, timeout=25):
+    p = subprocess.run(argv, capture_output=True, text=True, timeout=timeout)
     if p.returncode:
         raise RuntimeError(p.stderr.strip() or p.stdout.strip() or f'Command failed ({p.returncode})')
     return p.stdout.strip()
@@ -383,6 +384,7 @@ def inventory():
         if not isinstance(p, dict) or not isinstance(p.get('kinds'), list):
             continue
         p['isBarWidget'] = 'bar-widget' in p['kinds']
+        p['isDefaultBar'] = p['id'] == DEFAULT_BAR and 'bar' in p['kinds']
         p['canOpen'] = bool(set(p['kinds']) & {'overlay', 'panel', 'menu'})
         instances = []
         for section in SECTIONS:
@@ -498,12 +500,46 @@ def about_url(p):
             return entry['repo']
     raise RuntimeError('No source page found for this plugin.')
 
+def active_bar_id(plugins):
+    return next((p['id'] for p in plugins
+                 if isinstance(p, dict) and p.get('active') is True
+                 and isinstance(p.get('kinds'), list) and 'bar' in p['kinds'] and p.get('id')), None)
+
+
+def switch_bar(action, plugin, before):
+    if 'bar' not in plugin['kinds']:
+        raise ValueError('Only a full-bar plugin can be used as the active bar.')
+    current = active_bar_id(before)
+    pid = plugin['id']
+    if action == 'reset-bar' and (current != pid or pid == DEFAULT_BAR):
+        raise ValueError('The selected replacement bar is no longer active. Try Refresh.')
+    target = DEFAULT_BAR if action == 'reset-bar' else pid
+    if current == target:
+        return {'plugins': before, 'message': 'Bar is already active.'}
+    run(['omarchy', 'bar', 'reset'] if target == DEFAULT_BAR else ['omarchy', 'bar', 'use', target])
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        try:
+            active = active_bar_id(json.loads(run(['omarchy-shell', 'shell', 'listPlugins'], timeout=2)))
+        except (RuntimeError, ValueError, subprocess.TimeoutExpired):
+            active = None
+        if active == target:
+            after = inventory()
+            if active_bar_id(after) == target:
+                return {'plugins': after, 'message': 'Bar switch confirmed.'}
+            break
+        time.sleep(0.2)
+    raise RuntimeError('The requested bar did not become active. Try Refresh.')
+
+
 def execute(action, pid, section=None, source=None, index=None, confirmed=False):
     before = inventory()
     p = next((p for p in before if p['id'] == pid), None)
     if not p: raise ValueError('Unknown plugin.')
     if p.get('isSelf') and action in ('disable', 'remove'):
         raise ValueError('OmaPlugCtl must remain enabled to manage plugins.')
+    if action in ('use-bar', 'reset-bar'):
+        return switch_bar(action, p, before)
     if action == 'disable' and p.get('canDisable') is False:
         raise ValueError('This plugin must remain enabled.')
     if action == 'open':
@@ -551,7 +587,7 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['catalog', 'catalog-install', 'catalog-enable', 'catalog-source', 'list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about', 'open'])
+    parser.add_argument('action', choices=['catalog', 'catalog-install', 'catalog-enable', 'catalog-source', 'list', 'settings', 'icon-scale', 'workspace-count', 'position', 'sort', 'set-scan', 'check-updates', 'update', 'finish-update', 'update-status', 'enable', 'disable', 'move', 'remove', 'about', 'open', 'use-bar', 'reset-bar'])
     parser.add_argument('id', nargs='?')
     parser.add_argument('--edge', choices=EDGES)
     parser.add_argument('--section'); parser.add_argument('--source'); parser.add_argument('--index', type=int)

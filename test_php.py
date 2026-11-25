@@ -323,13 +323,13 @@ class PhpNativeStateTests(unittest.TestCase):
         self.assertTrue(self.invoke('catalog-enable', 'example.music')['entries'][0]['enabled'])
         self.assertFalse(self.invoke('catalog-install', 'example.music')['ok'])
 
-    def add_plugin(self, pid, kinds, enabled=True, can_disable=True):
+    def add_plugin(self, pid, kinds, enabled=True, can_disable=True, active=False):
         directory = self.base / '.config/omarchy/plugins' / pid
         directory.mkdir()
         (directory / 'manifest.json').write_text(json.dumps({
             'id': pid, 'name': pid, 'author': 'Fixture', 'kinds': kinds, 'entryPoints': {}}))
         state = json.loads(self.native_path.read_text())
-        state['plugins'].append(dict(id=pid, name=pid, kinds=kinds, enabled=enabled,
+        state['plugins'].append(dict(id=pid, name=pid, kinds=kinds, enabled=enabled, active=active,
                                      firstParty=False, canDisable=can_disable))
         self.native_path.write_text(json.dumps(state))
 
@@ -368,6 +368,40 @@ class PhpNativeStateTests(unittest.TestCase):
         state = json.loads(self.native_path.read_text()); state['summonError'] = True
         self.native_path.write_text(json.dumps(state))
         self.assertFalse(self.invoke('open', 'example.overlay')['ok'])
+
+    def test_switches_registered_bars_without_editing_the_widget_layout(self):
+        self.add_plugin('omarchy.bar', ['bar'], can_disable=False, active=True)
+        self.add_plugin('example.mixed', ['bar', 'bar-widget', 'service'], enabled=False, can_disable=False)
+        self.add_plugin('example.alternate', ['bar'], enabled=False, can_disable=False)
+        before = json.loads(self.config_path.read_text())['bar']['layout']
+        state = json.loads(self.native_path.read_text()); state['barReadbackDelay'] = 2
+        self.native_path.write_text(json.dumps(state))
+        for action, pid, target in (('use-bar', 'example.mixed', 'example.mixed'),
+                                    ('use-bar', 'example.alternate', 'example.alternate'),
+                                    ('reset-bar', 'example.alternate', 'omarchy.bar')):
+            with self.subTest(action=action, pid=pid):
+                result = self.invoke(action, pid)
+                self.assertTrue(result['ok'], result)
+                self.assertEqual([p['id'] for p in result['plugins'] if p.get('active')], [target])
+                self.assertEqual(json.loads(self.config_path.read_text())['bar']['layout'], before)
+        result = self.invoke('use-bar', 'omarchy.bar')
+        self.assertTrue(next(p for p in result['plugins'] if p['id'] == 'omarchy.bar')['isDefaultBar'])
+        self.assertEqual(json.loads(self.native_path.read_text())['barCommands'],
+                         [['bar', 'use', 'example.mixed'], ['bar', 'use', 'example.alternate'], ['bar', 'reset']])
+
+    def test_bar_switch_rejects_stale_selection_and_requires_active_readback(self):
+        self.add_plugin('omarchy.bar', ['bar'], can_disable=False, active=True)
+        self.add_plugin('example.inactive', ['bar'], enabled=False, can_disable=False)
+        for action, pid in (('reset-bar', 'example.inactive'), ('reset-bar', 'omarchy.bar'),
+                            ('use-bar', 'example.radio'), ('use-bar', 'unknown.bar')):
+            self.assertFalse(self.invoke(action, pid)['ok'])
+        state = json.loads(self.native_path.read_text())
+        self.assertNotIn('barCommands', state)
+        state['ignoreWrites'] = True
+        self.native_path.write_text(json.dumps(state))
+        result = self.invoke('use-bar', 'example.inactive')
+        self.assertFalse(result['ok'])
+        self.assertIn('did not become active', result['message'])
 
     def test_detached_update_finishes_after_launcher_returns(self):
         import time

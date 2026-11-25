@@ -5,6 +5,8 @@ use OmaPlugCtl\Updates as Updates;
 use OmaPlugCtl\Malware as Malware;
 use OmaPlugCtl\Marketplace as Marketplace;
 
+const DEFAULT_BAR = 'omarchy.bar';
+
 function self_settings(): array {
     foreach((config()['bar']['layout']??[])as$entries)if(is_array($entries))foreach($entries as$entry)if(is_array($entry)&&($entry['id']??'')===SELF)return $entry;
     return [];
@@ -80,13 +82,18 @@ function sort_plugins(array $plugins,string $order): array {
 function inventory(): array {
     return Updates\read_snapshot(fn()=>inventory_snapshot());
 }
-function inventory_snapshot(): array {
-    $plugins=json_decode(run(['omarchy-shell','shell','listPlugins']),true,512,JSON_THROW_ON_ERROR);
+function registry_plugins(int $timeout=25): array {
+    $plugins=json_decode(run(['omarchy-shell','shell','listPlugins'],$timeout),true,512,JSON_THROW_ON_ERROR);
     if(!is_array($plugins)||!array_is_list($plugins)||count($plugins)>10000)throw new \RuntimeException('Could not read the running plugins.');
+    return $plugins;
+}
+function inventory_snapshot(): array {
+    $plugins=registry_plugins();
     $metadata=metadata_map();$updateCache=Updates\load_cache();$operations=Updates\operations();$history=author_cache();$previous=$history;$layout=config()['bar']['layout']??[];$result=[];
     foreach($plugins as$p){
         if(!is_array($p)||!valid_id($p['id']??null)||!is_array($p['kinds']??null))continue;$id=$p['id'];$instances=[];
         $p['isBarWidget']=in_array('bar-widget',$p['kinds'],true);
+        $p['isDefaultBar']=$id===DEFAULT_BAR && in_array('bar',$p['kinds'],true);
         $p['canOpen']=(bool)array_intersect(['overlay','panel','menu'],$p['kinds']);
         foreach(SECTIONS as$section)foreach($layout[$section]??[]as$index=>$entry){$eid=is_string($entry)?$entry:($entry['id']??'');if($eid===$id)$instances[]=['section'=>$section,'index'=>$index];}
         $p['instances']=$instances;$p['description']=plugin_description($metadata[$id]??[]);$p=[...$p,...plugin_details($metadata[$id]??[],$history)];
@@ -140,9 +147,48 @@ function about_url(array $plugin): string {
     [$catalog]=Marketplace\load();foreach($catalog['entries']as$entry)if($entry['id']===$plugin['id']&&$entry['repo']!=='')return $entry['repo'];
     throw new \RuntimeException('No source page found for this plugin.');
 }
+function active_bar_id(array $plugins): ?string {
+    foreach ($plugins as $plugin) {
+        if (is_array($plugin) && ($plugin['active'] ?? false) === true && valid_id($plugin['id'] ?? null)
+            && is_array($plugin['kinds'] ?? null) && in_array('bar', $plugin['kinds'], true)) {
+            return $plugin['id'];
+        }
+    }
+    return null;
+}
+function switch_bar(string $action, array $plugin, array $before): array {
+    if (!in_array('bar', $plugin['kinds'], true)) {
+        throw new \InvalidArgumentException('Only a full-bar plugin can be used as the active bar.');
+    }
+    $current = active_bar_id($before);
+    $id = $plugin['id'];
+    if ($action === 'reset-bar' && ($current !== $id || $id === DEFAULT_BAR)) {
+        throw new \InvalidArgumentException('The selected replacement bar is no longer active. Try Refresh.');
+    }
+    $target = $action === 'reset-bar' ? DEFAULT_BAR : $id;
+    if ($current === $target) return ['plugins'=>$before, 'message'=>'Bar is already active.'];
+    run($target === DEFAULT_BAR ? ['omarchy', 'bar', 'reset'] : ['omarchy', 'bar', 'use', $target]);
+    $deadline = microtime(true) + 5;
+    do {
+        try {
+            $active = active_bar_id(registry_plugins(2));
+        } catch (\RuntimeException|\JsonException) {
+            // The shell can be temporarily unavailable while the bar rebuilds.
+            $active = null;
+        }
+        if ($active === $target) {
+            $after = inventory();
+            if (active_bar_id($after) === $target) return ['plugins'=>$after, 'message'=>'Bar switch confirmed.'];
+            break;
+        }
+        usleep(200000);
+    } while (microtime(true) < $deadline);
+    throw new \RuntimeException('The requested bar did not become active. Try Refresh.');
+}
 function execute(string $action,?string $id,?string $section=null,?string $source=null,?int $index=null,bool $confirmed=false): array {
     validate_id($id);$before=inventory();$p=null;foreach($before as$row)if($row['id']===$id){$p=$row;break;}if(!$p)throw new \InvalidArgumentException('Unknown plugin.');
     if(!empty($p['isSelf'])&&in_array($action,['disable','remove'],true))throw new \InvalidArgumentException('OmaPlugCtl must remain enabled to manage plugins.');
+    if(in_array($action,['use-bar','reset-bar'],true))return switch_bar($action,$p,$before);
     if($action==='disable'&&($p['canDisable']??true)===false)throw new \InvalidArgumentException('This plugin must remain enabled.');
     if($action==='open'){
         if(empty($p['enabled'])||!array_intersect(['overlay','panel','menu'],$p['kinds']))throw new \InvalidArgumentException('Enable a panel, overlay or menu plugin before opening it.');

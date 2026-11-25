@@ -25,10 +25,21 @@ def catalog():
 def emit(value):
     print(json.dumps(value))
 
+def select_bar(target):
+    for plugin in state['plugins']:
+        if 'bar' in plugin['kinds']:
+            plugin['active'] = plugin['enabled'] = plugin['id'] == target
+
 
 if name == 'omarchy-plugin-catalog':
     emit(catalog())
 elif name == 'omarchy-plugin-list' or (name == 'omarchy-shell' and args == ['shell', 'listPlugins']):
+    pending = state.get('pendingBar')
+    if pending and pending['reads'] == 0:
+        select_bar(pending['target'])
+        del state['pendingBar']
+    elif pending:
+        pending['reads'] -= 1
     emit(state['plugins'])
 elif name == 'omarchy-shell' and args[:2] == ['shell', 'moveBarWidget']:
     pid, target = args[2], json.loads(args[3])
@@ -44,6 +55,15 @@ elif name in ('omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin
             for plugin in state['plugins']:
                 if plugin['id'] == args[0]:
                     plugin['enabled'] = name.endswith('enable')
+elif name == 'omarchy' and args[:2] in (['bar', 'use'], ['bar', 'reset']):
+    state.setdefault('barCommands', []).append(args)
+    target = 'omarchy.bar' if args[1] == 'reset' else args[2]
+    if not state.get('ignoreWrites'):
+        state['pendingBar'] = {'target': target, 'reads': state.get('barReadbackDelay', 0)}
+        if target == 'omarchy.bar':
+            config['bar'].pop('id', None)
+        else:
+            config['bar']['id'] = target
 elif name == 'omarchy' and args[:2] == ['bar', 'position']:
     if len(args) == 2 and state.get('legacyPosition'):
         print('omarchy-bar: position is required', file=sys.stderr); sys.exit(1)

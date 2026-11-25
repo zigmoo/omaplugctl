@@ -10,6 +10,8 @@ Item {
   property bool expanded: false
   readonly property bool confirming: host.confirmingId === plugin.id
   readonly property bool available: !host.busy && host.confirmingId === ""
+  readonly property bool isFullBar: (plugin.kinds || []).indexOf("bar") !== -1
+  readonly property bool isActiveBar: isFullBar && plugin.active === true
   readonly property color ink: Commons.Color.popups.text
   implicitHeight: body.implicitHeight + Style.space(8)
 
@@ -134,6 +136,7 @@ Item {
         Text {
           width: parent.width
           text: {
+            if (root.isFullBar) return root.host.text(root.isActiveBar ? "bar.active" : "bar.inactive")
             if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.enabled" : "plugin.disabled")
             if (!root.plugin.enabled) return "Disabled · not on the bar"
             if (root.plugin.instances.length > 1) return "Enabled · " + root.plugin.instances.length + " positions"
@@ -175,6 +178,7 @@ Item {
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
+          visible: !root.isFullBar
           iconText: root.plugin.enabled ? "󰏤" : "󰐊"
           tooltipText: root.plugin.isSelf ? root.host.text("updates.controllerProtected") : (root.plugin.enabled ? "Disable " : "Enable ") + root.plugin.name
           fontFamily: root.host.themeFont
@@ -182,6 +186,17 @@ Item {
           focusable: true
           enabled: root.available && root.plugin.canDisable !== false
           onClicked: root.host.invoke(root.plugin.enabled ? "disable" : "enable", root.plugin.id)
+        }
+        Ui.PanelActionButton {
+          objectName: "pluginSwitchBarButton"
+          visible: root.isFullBar && !(root.isActiveBar && root.plugin.isDefaultBar)
+          iconText: root.isActiveBar ? "󰌍" : "󰏃"
+          tooltipText: root.isActiveBar || root.plugin.isDefaultBar ? root.host.text("bar.useDefault") : root.host.text("bar.usePlugin").arg(root.plugin.name)
+          fontFamily: root.host.themeFont
+          foreground: root.ink
+          focusable: true
+          enabled: root.available
+          onClicked: root.host.invoke(root.isActiveBar ? "reset-bar" : "use-bar", root.plugin.id)
         }
         Ui.PanelActionButton {
           iconText: "󰋽"

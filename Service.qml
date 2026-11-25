@@ -199,7 +199,8 @@ Item {
     else if (action !== "list" && action !== "check-updates") argv.push(pendingId)
     if (action === "move") argv.push("--section", section, "--source", source, "--index", String(index))
     if (confirmed) argv.push("--confirmed")
-    message = action === "icon-scale" ? strings.t("config.iconSaving") : action === "workspace-count" ? strings.t("config.workspaceSaving") : action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
+    if (action === "use-bar" || action === "reset-bar") message = strings.t("bar.switching")
+    else message = action === "icon-scale" ? strings.t("config.iconSaving") : action === "workspace-count" ? strings.t("config.workspaceSaving") : action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
     failed = false
     confirmingId = ""
     controller.command = argv

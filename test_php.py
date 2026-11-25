@@ -308,6 +308,14 @@ class PhpNativeStateTests(unittest.TestCase):
         self.native_path.write_text(json.dumps(state))
         self.assertFalse(self.invoke('disable', 'example.radio')['ok'])
 
+    def test_manager_can_be_paused_with_confirmation_and_reenabled(self):
+        result = self.invoke('disable', 'moo.omaplugctl', '--confirmed')
+        self.assertTrue(result['ok'], result)
+        self.assertFalse(next(p for p in result['plugins'] if p['id'] == 'moo.omaplugctl')['enabled'])
+        result = self.invoke('enable', 'moo.omaplugctl')
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(next(p for p in result['plugins'] if p['id'] == 'moo.omaplugctl')['enabled'])
+
     def test_confirmed_removal_uses_native_registry(self):
         result = self.invoke('remove', 'example.radio', '--confirmed')
         self.assertTrue(result['ok']); self.assertNotIn('example.radio', [p['id'] for p in result['plugins']])

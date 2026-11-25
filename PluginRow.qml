@@ -9,6 +9,7 @@ Item {
   required property var host
   property bool expanded: false
   readonly property bool confirming: host.confirmingId === plugin.id
+  readonly property bool confirmingPause: confirming && plugin.isSelf
   readonly property bool available: !host.busy && host.confirmingId === ""
   readonly property bool isFullBar: (plugin.kinds || []).indexOf("bar") !== -1
   readonly property bool isActiveBar: isFullBar && plugin.active === true
@@ -27,8 +28,7 @@ Item {
       Ui.PanelToolTip {
         id: descriptionTip
         objectName: "pluginDescriptionTooltip"
-        visible: rowHover.hovered && !kindBadges.hovered && !actionHover.hovered
-          && !switchBarButton.hot && !root.host.busy
+        visible: rowHover.hovered && !kindBadges.hovered && !actionHover.hovered && !root.host.busy
         text: root.plugin.description || root.host.noDescriptionText
         fontFamily: root.host.themeFont
         width: Math.min(root.width, Style.space(360))
@@ -151,23 +151,6 @@ Item {
           color: Qt.darker(root.ink, 1.4)
           elide: Text.ElideRight
         }
-        Ui.Button {
-          id: switchBarButton
-          objectName: "pluginSwitchBarButton"
-          visible: root.isFullBar && !(root.isActiveBar && root.plugin.isDefaultBar)
-          width: Math.min(parent.width, implicitWidth)
-          text: root.isActiveBar || root.plugin.isDefaultBar ? root.host.text("bar.useDefault") : root.host.text("bar.usePlugin").arg(root.plugin.name)
-          iconText: root.isActiveBar ? "󰌍" : "󰏃"
-          fontFamily: root.host.themeFont
-          fontSize: Style.font.caption
-          foreground: root.ink
-          bordered: true
-          focusable: true
-          enabled: root.available
-          horizontalPadding: Style.space(6)
-          verticalPadding: Style.space(3)
-          onClicked: root.host.invoke(root.isActiveBar ? "reset-bar" : "use-bar", root.plugin.id)
-        }
       }
       Row {
         id: actions
@@ -195,14 +178,30 @@ Item {
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
-          visible: !root.isFullBar
-          iconText: root.plugin.enabled ? "󰏤" : "󰐊"
-          tooltipText: root.plugin.isSelf ? root.host.text("updates.controllerProtected") : (root.plugin.enabled ? "Disable " : "Enable ") + root.plugin.name
+          iconText: (root.isFullBar ? root.isActiveBar : root.plugin.enabled) ? "󰏤" : "󰐊"
+          tooltipText: {
+            if (root.isActiveBar && root.plugin.isDefaultBar) return root.host.text("bar.chooseReplacement")
+            if (root.isActiveBar) return root.host.text("bar.pause").arg(root.plugin.name)
+            if (root.isFullBar) return root.plugin.isDefaultBar ? root.host.text("bar.useDefault") : root.host.text("bar.usePlugin").arg(root.plugin.name)
+            return (root.plugin.enabled ? "Disable " : "Enable ") + root.plugin.name
+          }
           fontFamily: root.host.themeFont
           foreground: root.ink
           focusable: true
-          enabled: root.available && root.plugin.canDisable !== false
-          onClicked: root.host.invoke(root.plugin.enabled ? "disable" : "enable", root.plugin.id)
+          enabled: root.available && (root.isFullBar || !root.plugin.enabled || root.plugin.canDisable !== false)
+          onClicked: {
+            if (root.isActiveBar && root.plugin.isDefaultBar) {
+              root.host.showReplacementBars()
+              return
+            }
+            if (root.plugin.isSelf && root.plugin.enabled) {
+              root.expanded = true
+              root.host.confirmingId = root.plugin.id
+              return
+            }
+            var action = root.isFullBar ? (root.isActiveBar ? "reset-bar" : "use-bar") : (root.plugin.enabled ? "disable" : "enable")
+            root.host.invoke(action, root.plugin.id)
+          }
         }
         Ui.PanelActionButton {
           iconText: "󰋽"
@@ -274,7 +273,8 @@ Item {
       Text {
         width: parent.width
         visible: root.confirming
-        text: "Uninstall " + root.plugin.name + "? This removes its local plugin checkout."
+        text: root.confirmingPause ? root.host.text("plugin.pauseManagerHelp").arg(root.plugin.id)
+          : "Uninstall " + root.plugin.name + "? This removes its local plugin checkout."
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
         font.family: root.host.themeFont
@@ -285,14 +285,15 @@ Item {
         spacing: Style.space(6)
         visible: root.confirming
         Ui.Button {
-          text: "Confirm uninstall"
+          objectName: "pluginConfirmAction"
+          text: root.confirmingPause ? root.host.text("plugin.confirmPause") : "Confirm uninstall"
           horizontalPadding: Style.space(4)
           verticalPadding: Style.space(2)
           fontFamily: root.host.themeFont
           foreground: root.ink
           focusable: true
           enabled: !root.host.busy
-          onClicked: root.host.invoke("remove", root.plugin.id, "", "", -1, true)
+          onClicked: root.host.invoke(root.confirmingPause ? "disable" : "remove", root.plugin.id, "", "", -1, true)
         }
         Ui.Button {
           text: "Cancel"

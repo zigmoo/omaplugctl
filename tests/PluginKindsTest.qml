@@ -13,7 +13,8 @@ ShellRoot {
     property string themeFont: "JetBrainsMono Nerd Font"
     property string noDescriptionText: "No description"
     property var calls: []
-    function invoke(action, id) { calls = calls.concat([{action: action, id: id}]) }
+    function invoke(action, id, section, source, index, confirmed) { calls = calls.concat([{action: action, id: id, confirmed: confirmed}]) }
+    function showReplacementBars() { calls = calls.concat([{action: "show-replacements"}]) }
     function pluginFooter(p) { return "Fixture author" }
     function updateLabel(p) { return "Up to date" }
     function updateTooltip(p) { return "" }
@@ -54,35 +55,58 @@ ShellRoot {
         verify(row.plugin.enabled)
         grabImage(win.contentItem).save(Qt.resolvedUrl("overlay-row.png").toString().replace(/^file:\/\//, ""))
       }
-      function test_full_bar_uses_switch_actions_instead_of_widget_toggle() {
+      function test_full_bar_pause_and_play_switch_bars() {
         row.plugin = Object.assign({}, row.plugin, {id: "example.replacement", name: "Replacement",
           kinds: ["bar", "bar-widget", "service"], isBarWidget: true, canOpen: false,
           canDisable: false, active: true})
         wait(30)
         compare(findChild(row, "pluginPositionStatus").text, "Active bar")
-        verify(!findChild(row, "pluginEnableButton").visible)
-        let button = findChild(row, "pluginSwitchBarButton")
-        verify(button.visible)
-        compare(button.text, "Switch to Omarchy bar")
-        verify(button.width <= row.width && button.width === button.implicitWidth)
+        let button = findChild(row, "pluginEnableButton")
+        verify(button.visible && button.enabled)
+        compare(button.iconText, "󰏤")
+        compare(button.tooltipText, "Pause Replacement and switch to Omarchy bar")
         mouseClick(button)
         compare(host.calls[0].action, "reset-bar")
         compare(host.calls[0].id, "example.replacement")
 
         row.plugin = Object.assign({}, row.plugin, {active: false, enabled: false})
         compare(findChild(row, "pluginPositionStatus").text, "Inactive bar")
-        compare(button.text, "Use Replacement bar")
+        compare(button.iconText, "󰐊")
+        compare(button.tooltipText, "Use Replacement bar")
         mouseClick(button)
         compare(host.calls[1].action, "use-bar")
         compare(host.calls[1].id, "example.replacement")
 
         row.plugin = Object.assign({}, row.plugin, {id: "omarchy.bar", isDefaultBar: true, active: true})
-        verify(!button.visible)
+        verify(button.visible && button.enabled)
+        compare(button.iconText, "󰏤")
+        mouseClick(button)
+        compare(host.calls[2].action, "show-replacements")
         row.plugin = Object.assign({}, row.plugin, {active: false})
         verify(button.visible)
-        compare(button.text, "Switch to Omarchy bar")
+        compare(button.tooltipText, "Switch to Omarchy bar")
         host.busy = true
         verify(!button.enabled)
+      }
+      function test_manager_has_pause_with_confirmation() {
+        row.plugin = Object.assign({}, row.plugin, {id: "moo.omaplugctl", name: "OmaPlugCtl",
+          kinds: ["bar-widget", "service"], isBarWidget: true, isSelf: true,
+          canDisable: true, canRemove: false, canOpen: false})
+        wait(30)
+        let button = findChild(row, "pluginEnableButton")
+        verify(button.visible && button.enabled)
+        compare(button.iconText, "󰏤")
+        mouseClick(button)
+        compare(host.confirmingId, "moo.omaplugctl")
+        compare(host.calls.length, 0)
+        let confirm = findChild(row, "pluginConfirmAction")
+        compare(confirm.text, "Confirm pause")
+        wait(50)
+        verify(confirm.visible && confirm.enabled)
+        mouseClick(confirm)
+        compare(host.calls[0].action, "disable")
+        compare(host.calls[0].id, "moo.omaplugctl")
+        verify(host.calls[0].confirmed)
       }
       function test_disabled_overlay_requires_enable_before_open() {
         row.plugin = Object.assign({}, row.plugin, {enabled: false}); wait(30)

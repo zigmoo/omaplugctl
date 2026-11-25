@@ -396,7 +396,7 @@ def inventory():
         p['description'] = plugin_description(metadata.get(p['id'], {}))
         p.update(plugin_details(metadata.get(p['id'], {}), history))
         p['isSelf'] = p['id'] == SELF
-        p['canDisable'] = not p['isSelf'] and p.get('canDisable', True)
+        p['canDisable'] = p.get('canDisable', True)
         p['canRemove'] = not p['isSelf'] and not p['firstParty'] and (pathlib.Path.home()/'.config/omarchy/plugins'/p['id']).exists()
         p['update'] = updates.cached_status(p, metadata.get(p['id'], {}), update_cache)
         p['operation'] = operations.get(p['id'], {})
@@ -536,8 +536,10 @@ def execute(action, pid, section=None, source=None, index=None, confirmed=False)
     before = inventory()
     p = next((p for p in before if p['id'] == pid), None)
     if not p: raise ValueError('Unknown plugin.')
-    if p.get('isSelf') and action in ('disable', 'remove'):
-        raise ValueError('OmaPlugCtl must remain enabled to manage plugins.')
+    if p.get('isSelf') and action == 'remove':
+        raise ValueError('OmaPlugCtl cannot uninstall itself.')
+    if p.get('isSelf') and action == 'disable' and not confirmed:
+        raise ValueError('Confirm before pausing OmaPlugCtl.')
     if action in ('use-bar', 'reset-bar'):
         return switch_bar(action, p, before)
     if action == 'disable' and p.get('canDisable') is False:

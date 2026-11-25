@@ -31,18 +31,18 @@ Each row shows a plugin’s name, bar position and update status. Hover the row 
 
 | Control | Action |
 | --- | --- |
-| Pause or play | Disable or enable plugins that support this action. |
+| Pause or play | Disable or enable a plugin. For a replacement bar, pause returns to the built-in bar and play activates the selected bar. |
 | Update arrows | Update this plugin when a source update is available. Hover for the latest change date and up to three commit subjects. |
 | Information | Open the plugin’s source page. |
 | Three dots | Move an instance to another bar section, or uninstall an installed third-party plugin. |
 
-Uninstall asks for confirmation and removes the plugin’s local checkout. Disabling keeps its files. Built-in plugins cannot be uninstalled here; OmaPlugCtl keeps itself enabled so its controls remain available.
+Uninstall asks for confirmation and removes the plugin’s local checkout. Pausing keeps the files. Built-in plugins and OmaPlugCtl cannot be uninstalled here. If you pause OmaPlugCtl, re-enable it with `omarchy plugin enable moo.omaplugctl`.
 
 If a plugin provides no meaningful author attribution, OmaPlugCtl traces its manifest and entry-point files through Git history to their first recorded commits. The hover footer identifies the author and commit; shallow histories are labeled as the earliest available record.
 
 ## Switch or move the bar
 
-Full-bar plugins stay active until you choose another bar. Use the button on an inactive full-bar row to activate that bar. On the active replacement bar’s row, **Switch to Omarchy bar** returns to the built-in bar. The previous bar stays installed. From a terminal, `omarchy bar reset` returns to the built-in bar and `omarchy bar use <plugin-id>` activates an installed full bar.
+Click **Pause** on the active replacement bar’s row to return to the built-in Omarchy bar. The replacement stays installed. Click **Play** on its row to switch back. **Pause** on the built-in bar shows the installed replacements so you can choose one. From a terminal, `omarchy bar reset` returns to the built-in bar and `omarchy bar use <plugin-id>` activates an installed full bar.
 
 Click an edge of the little screen diagram to move the bar there. The highlighted edge is the current position; the other three remain faintly visible.
 

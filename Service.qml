@@ -187,6 +187,15 @@ Item {
   function moveBar(edge) {
     if (!busy && edge !== barPosition) invoke("position", edge)
   }
+  function showReplacementBars() {
+    kindFilter.values = ["bar"]
+    Qt.callLater(function() { pluginList.positionViewAtBeginning() })
+    failed = false
+    var hasReplacement = plugins.some(function(plugin) {
+      return !plugin.isDefaultBar && (plugin.kinds || []).indexOf("bar") !== -1
+    })
+    message = strings.t(hasReplacement ? "bar.chooseReplacementHelp" : "bar.noReplacement")
+  }
   function invoke(action, pluginId, section, source, index, confirmed) {
     if (!runtime.ready || busy || (action !== "list" && action !== "check-updates" && !pluginId)) return
     pendingAction = action

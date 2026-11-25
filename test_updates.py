@@ -274,13 +274,17 @@ class UpdateTests(unittest.TestCase):
             self.assertTrue(launch.call_args.kwargs['start_new_session'])
             self.assertEqual(launch.call_args.kwargs['stdin'], subprocess.DEVNULL)
 
-    def test_controller_cannot_disable_or_remove_itself(self):
-        plugin = {'id': controller.SELF, 'isSelf': True}
-        for action in ('disable', 'remove'):
+    def test_controller_requires_confirmation_to_disable_and_cannot_uninstall_itself(self):
+        plugin = {'id': controller.SELF, 'isSelf': True, 'enabled': True}
+        for action, confirmed in (('disable', False), ('remove', True)):
             with self.subTest(action=action), patch.object(controller, 'inventory', return_value=[plugin]), patch.object(controller, 'run') as run:
                 with self.assertRaises(ValueError):
-                    controller.execute(action, controller.SELF, confirmed=True)
+                    controller.execute(action, controller.SELF, confirmed=confirmed)
                 run.assert_not_called()
+        paused = dict(plugin, enabled=False)
+        with patch.object(controller, 'inventory', side_effect=[[plugin], [paused]]), patch.object(controller, 'run') as run:
+            self.assertEqual(controller.execute('disable', controller.SELF, confirmed=True)['plugins'], [paused])
+            run.assert_called_once_with(['omarchy-plugin-disable', controller.SELF])
 
     def test_update_target_rejects_invalid_ids_before_any_command(self):
         with patch.object(controller, 'inventory') as inventory:

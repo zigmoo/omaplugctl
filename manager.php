@@ -97,7 +97,7 @@ function inventory_snapshot(): array {
         $p['canOpen']=(bool)array_intersect(['overlay','panel','menu'],$p['kinds']);
         foreach(SECTIONS as$section)foreach($layout[$section]??[]as$index=>$entry){$eid=is_string($entry)?$entry:($entry['id']??'');if($eid===$id)$instances[]=['section'=>$section,'index'=>$index];}
         $p['instances']=$instances;$p['description']=plugin_description($metadata[$id]??[]);$p=[...$p,...plugin_details($metadata[$id]??[],$history)];
-        $p['isSelf']=$id===SELF;$p['canDisable']=!$p['isSelf']&&($p['canDisable']??true);$p['canRemove']=!$p['isSelf']&&empty($p['firstParty'])&&file_exists(home().'/.config/omarchy/plugins/'.$id);
+        $p['isSelf']=$id===SELF;$p['canDisable']=$p['canDisable']??true;$p['canRemove']=!$p['isSelf']&&empty($p['firstParty'])&&file_exists(home().'/.config/omarchy/plugins/'.$id);
         $p['update']=Updates\cached_status($p,$metadata[$id]??[],$updateCache);$p['operation']=$operations[$id]??(object)[];$result[]=$p;
     }
     if($history!==$previous)Updates\save_cache($history,state_root().'/authors.json');return $result;
@@ -187,7 +187,8 @@ function switch_bar(string $action, array $plugin, array $before): array {
 }
 function execute(string $action,?string $id,?string $section=null,?string $source=null,?int $index=null,bool $confirmed=false): array {
     validate_id($id);$before=inventory();$p=null;foreach($before as$row)if($row['id']===$id){$p=$row;break;}if(!$p)throw new \InvalidArgumentException('Unknown plugin.');
-    if(!empty($p['isSelf'])&&in_array($action,['disable','remove'],true))throw new \InvalidArgumentException('OmaPlugCtl must remain enabled to manage plugins.');
+    if(!empty($p['isSelf'])&&$action==='remove')throw new \InvalidArgumentException('OmaPlugCtl cannot uninstall itself.');
+    if(!empty($p['isSelf'])&&$action==='disable'&&!$confirmed)throw new \InvalidArgumentException('Confirm before pausing OmaPlugCtl.');
     if(in_array($action,['use-bar','reset-bar'],true))return switch_bar($action,$p,$before);
     if($action==='disable'&&($p['canDisable']??true)===false)throw new \InvalidArgumentException('This plugin must remain enabled.');
     if($action==='open'){

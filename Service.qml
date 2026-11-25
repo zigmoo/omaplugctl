@@ -5,6 +5,7 @@ import Quickshell.Io
 import qs.Commons
 import qs.Commons as Commons
 import qs.Ui as Ui
+import "BarServiceBridge.js" as BarServiceBridge
 
 Item {
   id: root
@@ -103,7 +104,21 @@ Item {
     Style.applyShellValues(values)
   }
   onBarIconScaleChanged: applyBarIconScale()
-  Component.onDestruction: Style.applyShellValues(Commons.Color.shellValues)
+  property var bridgePublication: null
+  Component.onCompleted: bridgePublication = BarServiceBridge.publish(widgetControls)
+  Component.onDestruction: {
+    BarServiceBridge.clear(bridgePublication)
+    Style.applyShellValues(Commons.Color.shellValues)
+  }
+  QtObject {
+    id: widgetControls
+    readonly property bool menuOpen: root.menuOpen
+    readonly property Item anchorItem: root.anchorItem
+    function attach(item, host) { root.attach(item, host) }
+    function detach(item) { root.detach(item) }
+    function showFor(item, host) { root.showFor(item, host) }
+    function close() { root.close() }
+  }
   Connections {
     target: Commons.Color
     function onShellValuesChanged() { Qt.callLater(root.applyBarIconScale) }

@@ -42,7 +42,7 @@ If a plugin provides no meaningful author attribution, OmaPlugCtl traces its man
 
 ## Switch or move the bar
 
-Full-bar plugins stay active until you choose another bar. Use the switch icon on an inactive full-bar row to activate that bar. On the active replacement bar’s row, the return arrow switches to the built-in Omarchy bar. The previous bar stays installed. From a terminal, `omarchy bar reset` returns to the built-in bar and `omarchy bar use <plugin-id>` activates an installed full bar.
+Full-bar plugins stay active until you choose another bar. Use the button on an inactive full-bar row to activate that bar. On the active replacement bar’s row, **Switch to Omarchy bar** returns to the built-in bar. The previous bar stays installed. From a terminal, `omarchy bar reset` returns to the built-in bar and `omarchy bar use <plugin-id>` activates an installed full bar.
 
 Click an edge of the little screen diagram to move the bar there. The highlighted edge is the current position; the other three remain faintly visible.
 

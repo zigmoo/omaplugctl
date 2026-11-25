@@ -27,7 +27,8 @@ Item {
       Ui.PanelToolTip {
         id: descriptionTip
         objectName: "pluginDescriptionTooltip"
-        visible: rowHover.hovered && !kindBadges.hovered && !actionHover.hovered && !root.host.busy
+        visible: rowHover.hovered && !kindBadges.hovered && !actionHover.hovered
+          && !switchBarButton.hot && !root.host.busy
         text: root.plugin.description || root.host.noDescriptionText
         fontFamily: root.host.themeFont
         width: Math.min(root.width, Style.space(360))
@@ -150,7 +151,23 @@ Item {
           color: Qt.darker(root.ink, 1.4)
           elide: Text.ElideRight
         }
-
+        Ui.Button {
+          id: switchBarButton
+          objectName: "pluginSwitchBarButton"
+          visible: root.isFullBar && !(root.isActiveBar && root.plugin.isDefaultBar)
+          width: Math.min(parent.width, implicitWidth)
+          text: root.isActiveBar || root.plugin.isDefaultBar ? root.host.text("bar.useDefault") : root.host.text("bar.usePlugin").arg(root.plugin.name)
+          iconText: root.isActiveBar ? "󰌍" : "󰏃"
+          fontFamily: root.host.themeFont
+          fontSize: Style.font.caption
+          foreground: root.ink
+          bordered: true
+          focusable: true
+          enabled: root.available
+          horizontalPadding: Style.space(6)
+          verticalPadding: Style.space(3)
+          onClicked: root.host.invoke(root.isActiveBar ? "reset-bar" : "use-bar", root.plugin.id)
+        }
       }
       Row {
         id: actions
@@ -186,17 +203,6 @@ Item {
           focusable: true
           enabled: root.available && root.plugin.canDisable !== false
           onClicked: root.host.invoke(root.plugin.enabled ? "disable" : "enable", root.plugin.id)
-        }
-        Ui.PanelActionButton {
-          objectName: "pluginSwitchBarButton"
-          visible: root.isFullBar && !(root.isActiveBar && root.plugin.isDefaultBar)
-          iconText: root.isActiveBar ? "󰌍" : "󰏃"
-          tooltipText: root.isActiveBar || root.plugin.isDefaultBar ? root.host.text("bar.useDefault") : root.host.text("bar.usePlugin").arg(root.plugin.name)
-          fontFamily: root.host.themeFont
-          foreground: root.ink
-          focusable: true
-          enabled: root.available
-          onClicked: root.host.invoke(root.isActiveBar ? "reset-bar" : "use-bar", root.plugin.id)
         }
         Ui.PanelActionButton {
           iconText: "󰋽"

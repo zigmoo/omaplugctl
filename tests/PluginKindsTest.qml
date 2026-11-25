@@ -63,14 +63,15 @@ ShellRoot {
         verify(!findChild(row, "pluginEnableButton").visible)
         let button = findChild(row, "pluginSwitchBarButton")
         verify(button.visible)
-        compare(button.tooltipText, "Switch to Omarchy bar")
+        compare(button.text, "Switch to Omarchy bar")
+        verify(button.width <= row.width && button.width === button.implicitWidth)
         mouseClick(button)
         compare(host.calls[0].action, "reset-bar")
         compare(host.calls[0].id, "example.replacement")
 
         row.plugin = Object.assign({}, row.plugin, {active: false, enabled: false})
         compare(findChild(row, "pluginPositionStatus").text, "Inactive bar")
-        compare(button.tooltipText, "Use Replacement bar")
+        compare(button.text, "Use Replacement bar")
         mouseClick(button)
         compare(host.calls[1].action, "use-bar")
         compare(host.calls[1].id, "example.replacement")
@@ -79,7 +80,7 @@ ShellRoot {
         verify(!button.visible)
         row.plugin = Object.assign({}, row.plugin, {active: false})
         verify(button.visible)
-        compare(button.tooltipText, "Switch to Omarchy bar")
+        compare(button.text, "Switch to Omarchy bar")
         host.busy = true
         verify(!button.enabled)
       }

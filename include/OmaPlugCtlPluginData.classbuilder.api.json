@@ -1,0 +1,2842 @@
+{
+    "schema_version": 1,
+    "coverage": "source_declared_public_methods",
+    "verification": "not_executed",
+    "callable_metadata_scope": "source_declarations_only; defaults and types retain source expressions; inherited and runtime semantics are not inferred",
+    "generator_version": "29751097ab2bc25e",
+    "definition_sha256": "6a42ef4eb628b1e111609600cfe1cd202f5fe8afb0a1c5dbb8eb69599762bfbc",
+    "files": {
+        "OmaPlugCtlPluginData.class.php": {
+            "sha256": "b06b1a369eb744ce5c0da7019b0e1cf7ae4fb1379613f91df87d59913bd4b011",
+            "classes": {
+                "OmaPlugCtlPluginData": [
+                    {
+                        "name": "ClearLog",
+                        "static": false
+                    },
+                    {
+                        "name": "Destroy",
+                        "static": false
+                    },
+                    {
+                        "name": "GetClassName",
+                        "static": false
+                    },
+                    {
+                        "name": "GetColumnList",
+                        "static": false
+                    },
+                    {
+                        "name": "GetDebug",
+                        "static": false
+                    },
+                    {
+                        "name": "GetKeys",
+                        "static": false
+                    },
+                    {
+                        "name": "GetLog",
+                        "static": false
+                    },
+                    {
+                        "name": "GetLogTimestamps",
+                        "static": false
+                    },
+                    {
+                        "name": "GetPropertyMetadata",
+                        "static": false
+                    },
+                    {
+                        "name": "Getauthor",
+                        "static": false
+                    },
+                    {
+                        "name": "Getchecked_at",
+                        "static": false
+                    },
+                    {
+                        "name": "Getplatform",
+                        "static": false
+                    },
+                    {
+                        "name": "Getplugin_id",
+                        "static": false
+                    },
+                    {
+                        "name": "Getsignature",
+                        "static": false
+                    },
+                    {
+                        "name": "Geturl",
+                        "static": false
+                    },
+                    {
+                        "name": "HumanListFields",
+                        "static": true
+                    },
+                    {
+                        "name": "NormalizePropertyValue",
+                        "static": true
+                    },
+                    {
+                        "name": "PrimeProperties",
+                        "static": false
+                    },
+                    {
+                        "name": "PrimePropertiesByIndexedArray",
+                        "static": false
+                    },
+                    {
+                        "name": "RenderList",
+                        "static": true
+                    },
+                    {
+                        "name": "SetDebug",
+                        "static": false
+                    },
+                    {
+                        "name": "SetLogTimestamps",
+                        "static": false
+                    },
+                    {
+                        "name": "Setauthor",
+                        "static": false
+                    },
+                    {
+                        "name": "Setchecked_at",
+                        "static": false
+                    },
+                    {
+                        "name": "Setplatform",
+                        "static": false
+                    },
+                    {
+                        "name": "Setplugin_id",
+                        "static": false
+                    },
+                    {
+                        "name": "Setsignature",
+                        "static": false
+                    },
+                    {
+                        "name": "Seturl",
+                        "static": false
+                    },
+                    {
+                        "name": "TemporalFormats",
+                        "static": true
+                    },
+                    {
+                        "name": "ToArray",
+                        "static": false
+                    },
+                    {
+                        "name": "UniqueKeyGroups",
+                        "static": true
+                    },
+                    {
+                        "name": "__construct",
+                        "static": false
+                    },
+                    {
+                        "name": "log",
+                        "static": false
+                    },
+                    {
+                        "name": "str2no",
+                        "static": false
+                    }
+                ]
+            },
+            "declaration_kinds": {
+                "OmaPlugCtlPluginData": "class"
+            },
+            "trait_uses": {
+                "OmaPlugCtlPluginData": []
+            },
+            "callable_metadata": {
+                "OmaPlugCtlPluginData": {
+                    "ClearLog": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "ClearLog",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function ClearLog()"
+                    },
+                    "Destroy": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Destroy",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Destroy()"
+                    },
+                    "GetClassName": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetClassName",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetClassName()"
+                    },
+                    "GetColumnList": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetColumnList",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetColumnList()"
+                    },
+                    "GetDebug": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetDebug",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetDebug()"
+                    },
+                    "GetKeys": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetKeys",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetKeys()"
+                    },
+                    "GetLog": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetLog",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetLog()"
+                    },
+                    "GetLogTimestamps": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetLogTimestamps",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetLogTimestamps()"
+                    },
+                    "GetPropertyMetadata": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "GetPropertyMetadata",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function GetPropertyMetadata()"
+                    },
+                    "Getauthor": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Getauthor",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Getauthor()"
+                    },
+                    "Getchecked_at": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Getchecked_at",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Getchecked_at()"
+                    },
+                    "Getplatform": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Getplatform",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Getplatform()"
+                    },
+                    "Getplugin_id": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Getplugin_id",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Getplugin_id()"
+                    },
+                    "Getsignature": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Getsignature",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Getsignature()"
+                    },
+                    "Geturl": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Geturl",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function Geturl()"
+                    },
+                    "HumanListFields": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "HumanListFields",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function HumanListFields()"
+                    },
+                    "NormalizePropertyValue": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "NormalizePropertyValue",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "field",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "value",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function NormalizePropertyValue($field, $value)"
+                    },
+                    "PrimeProperties": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "PrimeProperties",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "associativeArray",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "debug",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function PrimeProperties($associativeArray = null, $debug = false)"
+                    },
+                    "PrimePropertiesByIndexedArray": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "PrimePropertiesByIndexedArray",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "indexedArray",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "debug",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function PrimePropertiesByIndexedArray($indexedArray = null, $debug = false)"
+                    },
+                    "RenderList": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "RenderList",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "rows",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "width",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "80",
+                                "optional": true
+                            },
+                            {
+                                "name": "columns",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "noun",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'record'",
+                                "optional": true
+                            },
+                            {
+                                "name": "json",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            },
+                            {
+                                "name": "sortBy",
+                                "type_source": "string|array|null",
+                                "prefix_source": "string|array|null",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "string",
+                        "signature_source": "function RenderList(\n        array $rows,\n        int $width = 80,\n        array $columns = [],\n        string $noun = 'record',\n        bool $json = false,\n        string|array|null $sortBy = null\n    ): string"
+                    },
+                    "SetDebug": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "SetDebug",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "debug",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function SetDebug($debug)"
+                    },
+                    "SetLogTimestamps": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "SetLogTimestamps",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "enabled",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function SetLogTimestamps($enabled)"
+                    },
+                    "Setauthor": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Setauthor",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "author",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Setauthor($author)"
+                    },
+                    "Setchecked_at": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Setchecked_at",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "checked_at",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Setchecked_at($checked_at)"
+                    },
+                    "Setplatform": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Setplatform",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "platform",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Setplatform($platform)"
+                    },
+                    "Setplugin_id": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Setplugin_id",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "plugin_id",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Setplugin_id($plugin_id)"
+                    },
+                    "Setsignature": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Setsignature",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "signature",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Setsignature($signature)"
+                    },
+                    "Seturl": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "Seturl",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "url",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function Seturl($url)"
+                    },
+                    "TemporalFormats": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "TemporalFormats",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function TemporalFormats()"
+                    },
+                    "ToArray": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "ToArray",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function ToArray()"
+                    },
+                    "UniqueKeyGroups": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "UniqueKeyGroups",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function UniqueKeyGroups()"
+                    },
+                    "__construct": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "__construct",
+                        "static": false,
+                        "constructor": true,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "arrayIn",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "debug",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function __construct($arrayIn = null, $debug = false)"
+                    },
+                    "log": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "log",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "inputMessage",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function log($inputMessage)"
+                    },
+                    "str2no": {
+                        "declared_by": "OmaPlugCtlPluginData",
+                        "source_file": "OmaPlugCtlPluginData.class.php",
+                        "name": "str2no",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "number",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function str2no($number)"
+                    }
+                }
+            }
+        },
+        "OmaPlugCtlPluginDataIndexedJsonlStore.class.php": {
+            "sha256": "2526bb2bb9fddb16e35dccf59909d9366973486b4de7bbf259ad2aa6f39db2fd",
+            "classes": {
+                "ClassBuilderRecordStore": [
+                    {
+                        "name": "Delete",
+                        "static": false
+                    },
+                    {
+                        "name": "Find",
+                        "static": false
+                    },
+                    {
+                        "name": "FindMany",
+                        "static": false
+                    },
+                    {
+                        "name": "Insert",
+                        "static": false
+                    },
+                    {
+                        "name": "List",
+                        "static": false
+                    },
+                    {
+                        "name": "Search",
+                        "static": false
+                    },
+                    {
+                        "name": "Update",
+                        "static": false
+                    }
+                ],
+                "ClassBuilderRowsetTransfer": [
+                    {
+                        "name": "export_delimited",
+                        "static": false
+                    },
+                    {
+                        "name": "export_json",
+                        "static": false
+                    },
+                    {
+                        "name": "import_delimited",
+                        "static": false
+                    },
+                    {
+                        "name": "import_json",
+                        "static": false
+                    }
+                ],
+                "ClassBuilderRowsetTransferStore": [
+                    {
+                        "name": "export_delimited",
+                        "static": false
+                    },
+                    {
+                        "name": "export_json",
+                        "static": false
+                    },
+                    {
+                        "name": "import_delimited",
+                        "static": false
+                    },
+                    {
+                        "name": "import_json",
+                        "static": false
+                    }
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStore": [
+                    {
+                        "name": "Delete",
+                        "static": false
+                    },
+                    {
+                        "name": "Find",
+                        "static": false
+                    },
+                    {
+                        "name": "FindMany",
+                        "static": false
+                    },
+                    {
+                        "name": "GetLastOperationMetrics",
+                        "static": false
+                    },
+                    {
+                        "name": "GetRecord",
+                        "static": false
+                    },
+                    {
+                        "name": "GetRecordVersionIdentifier",
+                        "static": false
+                    },
+                    {
+                        "name": "GetSnapshotState",
+                        "static": false
+                    },
+                    {
+                        "name": "IndexGroups",
+                        "static": true
+                    },
+                    {
+                        "name": "Insert",
+                        "static": false
+                    },
+                    {
+                        "name": "List",
+                        "static": false
+                    },
+                    {
+                        "name": "Search",
+                        "static": false
+                    },
+                    {
+                        "name": "SetSequence",
+                        "static": false
+                    },
+                    {
+                        "name": "UniqueKeyGroups",
+                        "static": true
+                    },
+                    {
+                        "name": "Update",
+                        "static": false
+                    },
+                    {
+                        "name": "__construct",
+                        "static": false
+                    },
+                    {
+                        "name": "__destruct",
+                        "static": false
+                    },
+                    {
+                        "name": "checkpoint",
+                        "static": false
+                    },
+                    {
+                        "name": "hold",
+                        "static": false
+                    },
+                    {
+                        "name": "pack",
+                        "static": false
+                    },
+                    {
+                        "name": "release",
+                        "static": false
+                    },
+                    {
+                        "name": "share",
+                        "static": false
+                    },
+                    {
+                        "name": "unwatch",
+                        "static": false
+                    },
+                    {
+                        "name": "watch",
+                        "static": false
+                    }
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreBusy": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreCursor": [
+                    {
+                        "name": "GetLastOperationMetrics",
+                        "static": false
+                    },
+                    {
+                        "name": "ReadNext",
+                        "static": false
+                    },
+                    {
+                        "name": "__construct",
+                        "static": false
+                    },
+                    {
+                        "name": "__destruct",
+                        "static": false
+                    },
+                    {
+                        "name": "close",
+                        "static": false
+                    }
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode": [
+                    {
+                        "name": "ComparePrefix",
+                        "static": true
+                    },
+                    {
+                        "name": "FromOrderedSignatures",
+                        "static": true
+                    },
+                    {
+                        "name": "Put",
+                        "static": true
+                    },
+                    {
+                        "name": "Remove",
+                        "static": true
+                    },
+                    {
+                        "name": "Walk",
+                        "static": true
+                    },
+                    {
+                        "name": "__construct",
+                        "static": false
+                    }
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease": [
+                    {
+                        "name": "__construct",
+                        "static": false
+                    },
+                    {
+                        "name": "__destruct",
+                        "static": false
+                    },
+                    {
+                        "name": "close",
+                        "static": false
+                    }
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreRecoveryRequired": []
+            },
+            "declaration_kinds": {
+                "ClassBuilderRecordStore": "interface",
+                "ClassBuilderRowsetTransferStore": "interface",
+                "ClassBuilderRowsetTransfer": "trait",
+                "OmaPlugCtlPluginDataIndexedJsonlStore": "class",
+                "OmaPlugCtlPluginDataIndexedJsonlStoreRecoveryRequired": "class",
+                "OmaPlugCtlPluginDataIndexedJsonlStoreBusy": "class",
+                "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease": "class",
+                "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode": "class",
+                "OmaPlugCtlPluginDataIndexedJsonlStoreCursor": "class"
+            },
+            "trait_uses": {
+                "ClassBuilderRecordStore": [],
+                "ClassBuilderRowsetTransferStore": [],
+                "ClassBuilderRowsetTransfer": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStore": [
+                    "ClassBuilderRowsetTransfer"
+                ],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreRecoveryRequired": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreBusy": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreCursor": []
+            },
+            "callable_metadata": {
+                "ClassBuilderRecordStore": {
+                    "Delete": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Delete",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Delete(array $key, bool $dryRun = false): array"
+                    },
+                    "Find": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Find",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Find(array $criteria = []): array"
+                    },
+                    "FindMany": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "FindMany",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteriaSets",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "requireAll",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function FindMany(array $criteriaSets, bool $requireAll = false): array"
+                    },
+                    "Insert": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Insert",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "record",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Insert($record, bool $dryRun = false): array"
+                    },
+                    "List": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "List",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "orderBy",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'asc'",
+                                "optional": true
+                            },
+                            {
+                                "name": "limit",
+                                "type_source": "?int",
+                                "prefix_source": "?int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "offset",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "0",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function List(\n            array $criteria = [],\n            ?string $orderBy = null,\n            string $direction = 'asc',\n            ?int $limit = null,\n            int $offset = 0\n        ): array"
+                    },
+                    "Search": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Search",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "query",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "fields",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "orderBy",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'asc'",
+                                "optional": true
+                            },
+                            {
+                                "name": "limit",
+                                "type_source": "?int",
+                                "prefix_source": "?int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "offset",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "0",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Search(\n            string $query,\n            array $fields = [],\n            array $criteria = [],\n            ?string $orderBy = null,\n            string $direction = 'asc',\n            ?int $limit = null,\n            int $offset = 0\n        ): array"
+                    },
+                    "Update": {
+                        "declared_by": "ClassBuilderRecordStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Update",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "record",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Update(array $key, $record, bool $dryRun = false): array"
+                    }
+                },
+                "ClassBuilderRowsetTransfer": {
+                    "export_delimited": {
+                        "declared_by": "ClassBuilderRowsetTransfer",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "export_delimited",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "outputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "delimiter",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "','",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function export_delimited(\n            string $outputPath,\n            string $delimiter = ','\n        ): array"
+                    },
+                    "export_json": {
+                        "declared_by": "ClassBuilderRowsetTransfer",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "export_json",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "outputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function export_json(string $outputPath): array"
+                    },
+                    "import_delimited": {
+                        "declared_by": "ClassBuilderRowsetTransfer",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "import_delimited",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "inputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "delimiter",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "','",
+                                "optional": true
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function import_delimited(\n            string $inputPath,\n            string $delimiter = ',',\n            bool $dryRun = false\n        ): array"
+                    },
+                    "import_json": {
+                        "declared_by": "ClassBuilderRowsetTransfer",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "import_json",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "inputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function import_json(string $inputPath, bool $dryRun = false): array"
+                    }
+                },
+                "ClassBuilderRowsetTransferStore": {
+                    "export_delimited": {
+                        "declared_by": "ClassBuilderRowsetTransferStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "export_delimited",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "outputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "delimiter",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "','",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function export_delimited(\n            string $outputPath,\n            string $delimiter = ','\n        ): array"
+                    },
+                    "export_json": {
+                        "declared_by": "ClassBuilderRowsetTransferStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "export_json",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "outputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function export_json(string $outputPath): array"
+                    },
+                    "import_delimited": {
+                        "declared_by": "ClassBuilderRowsetTransferStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "import_delimited",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "inputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "delimiter",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "','",
+                                "optional": true
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function import_delimited(\n            string $inputPath,\n            string $delimiter = ',',\n            bool $dryRun = false\n        ): array"
+                    },
+                    "import_json": {
+                        "declared_by": "ClassBuilderRowsetTransferStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "import_json",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "inputPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function import_json(string $inputPath, bool $dryRun = false): array"
+                    }
+                },
+                "OmaPlugCtlPluginDataIndexedJsonlStore": {
+                    "Delete": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Delete",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            },
+                            {
+                                "name": "recordVersionIdentifier",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "expectedRecordVersionIdentifier",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Delete(\n        array $key, bool $dryRun = false,\n        ?string $recordVersionIdentifier = null, ?string $expectedRecordVersionIdentifier = null\n    ): array"
+                    },
+                    "Find": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Find",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Find(array $criteria = []): array"
+                    },
+                    "FindMany": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "FindMany",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteriaSets",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "requireAll",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function FindMany(array $criteriaSets, bool $requireAll = false): array"
+                    },
+                    "GetLastOperationMetrics": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "GetLastOperationMetrics",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "?array",
+                        "signature_source": "function GetLastOperationMetrics(): ?array"
+                    },
+                    "GetRecord": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "GetRecord",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "?OmaPlugCtlPluginData",
+                        "signature_source": "function GetRecord(array $key): ?OmaPlugCtlPluginData"
+                    },
+                    "GetRecordVersionIdentifier": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "GetRecordVersionIdentifier",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "?string",
+                        "signature_source": "function GetRecordVersionIdentifier(array $key): ?string"
+                    },
+                    "GetSnapshotState": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "GetSnapshotState",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "array",
+                        "signature_source": "function GetSnapshotState(): array"
+                    },
+                    "IndexGroups": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "IndexGroups",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "array",
+                        "signature_source": "function IndexGroups(): array"
+                    },
+                    "Insert": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Insert",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "record",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            },
+                            {
+                                "name": "recordVersionIdentifier",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Insert($record, bool $dryRun = false, ?string $recordVersionIdentifier = null): array"
+                    },
+                    "List": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "List",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "orderBy",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'asc'",
+                                "optional": true
+                            },
+                            {
+                                "name": "limit",
+                                "type_source": "?int",
+                                "prefix_source": "?int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "offset",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "0",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function List(\n        array $criteria = [],\n        ?string $orderBy = null,\n        string $direction = 'asc',\n        ?int $limit = null,\n        int $offset = 0\n    ): array"
+                    },
+                    "Search": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Search",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "query",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "fields",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "criteria",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "orderBy",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'asc'",
+                                "optional": true
+                            },
+                            {
+                                "name": "limit",
+                                "type_source": "?int",
+                                "prefix_source": "?int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "offset",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "0",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Search(\n        string $query,\n        array $fields = [],\n        array $criteria = [],\n        ?string $orderBy = null,\n        string $direction = 'asc',\n        ?int $limit = null,\n        int $offset = 0\n    ): array"
+                    },
+                    "SetSequence": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "SetSequence",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "index",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'primary'",
+                                "optional": true
+                            },
+                            {
+                                "name": "lowerBound",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "upperBound",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "[]",
+                                "optional": true
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "'asc'",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "signature_source": "function SetSequence(\n        string $index = 'primary',\n        array $lowerBound = [],\n        array $upperBound = [],\n        string $direction = 'asc'\n    ): OmaPlugCtlPluginDataIndexedJsonlStoreCursor"
+                    },
+                    "UniqueKeyGroups": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "UniqueKeyGroups",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "array",
+                        "signature_source": "function UniqueKeyGroups(): array"
+                    },
+                    "Update": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Update",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "record",
+                                "type_source": null,
+                                "prefix_source": "",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            },
+                            {
+                                "name": "recordVersionIdentifier",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "expectedRecordVersionIdentifier",
+                                "type_source": "?string",
+                                "prefix_source": "?string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function Update(\n        array $key, $record, bool $dryRun = false,\n        ?string $recordVersionIdentifier = null, ?string $expectedRecordVersionIdentifier = null\n    ): array"
+                    },
+                    "__construct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__construct",
+                        "static": false,
+                        "constructor": true,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "dataPath",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function __construct(string $dataPath)"
+                    },
+                    "__destruct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__destruct",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function __destruct()"
+                    },
+                    "checkpoint": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "checkpoint",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function checkpoint(bool $dryRun = false): array"
+                    },
+                    "hold": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "hold",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "waitMilliseconds",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "0",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "?OmaPlugCtlPluginData",
+                        "signature_source": "function hold(array $key, int $waitMilliseconds = 0): ?OmaPlugCtlPluginData"
+                    },
+                    "pack": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "pack",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "dryRun",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "false",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "array",
+                        "signature_source": "function pack(bool $dryRun = false): array"
+                    },
+                    "release": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "release",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "bool",
+                        "signature_source": "function release(): bool"
+                    },
+                    "share": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "share",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "self",
+                        "signature_source": "function share(): self"
+                    },
+                    "unwatch": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "unwatch",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "?array",
+                                "prefix_source": "?array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": "int",
+                        "signature_source": "function unwatch(?array $key = null): int"
+                    },
+                    "watch": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStore",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "watch",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "key",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "?OmaPlugCtlPluginData",
+                        "signature_source": "function watch(array $key): ?OmaPlugCtlPluginData"
+                    }
+                },
+                "OmaPlugCtlPluginDataIndexedJsonlStoreBusy": [],
+                "OmaPlugCtlPluginDataIndexedJsonlStoreCursor": {
+                    "GetLastOperationMetrics": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "GetLastOperationMetrics",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "?array",
+                        "signature_source": "function GetLastOperationMetrics(): ?array"
+                    },
+                    "ReadNext": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "ReadNext",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "?OmaPlugCtlPluginData",
+                        "signature_source": "function ReadNext(): ?OmaPlugCtlPluginData"
+                    },
+                    "__construct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__construct",
+                        "static": false,
+                        "constructor": true,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "root",
+                                "type_source": "?OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                                "prefix_source": "?OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "lower",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "upper",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "direction",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "readRecord",
+                                "type_source": "Closure",
+                                "prefix_source": "private Closure",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "measureDurations",
+                                "type_source": "bool",
+                                "prefix_source": "private bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "readerLease",
+                                "type_source": "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease",
+                                "prefix_source": "private OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function __construct(?OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode $root, array $lower, array $upper, string $direction, private Closure $readRecord, private bool $measureDurations, private OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease $readerLease)"
+                    },
+                    "__destruct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__destruct",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function __destruct()"
+                    },
+                    "close": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreCursor",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "close",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "void",
+                        "signature_source": "function close(): void"
+                    }
+                },
+                "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode": {
+                    "ComparePrefix": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "ComparePrefix",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "left",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "right",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "int",
+                        "signature_source": "function ComparePrefix(array $left, array $right): int"
+                    },
+                    "FromOrderedSignatures": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "FromOrderedSignatures",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "signatures",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "records",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "index",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "start",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "length",
+                                "type_source": "int",
+                                "prefix_source": "int",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "?self",
+                        "signature_source": "function FromOrderedSignatures(array $signatures, array $records, string $index, int $start, int $length): ?self"
+                    },
+                    "Put": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Put",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "node",
+                                "type_source": "?self",
+                                "prefix_source": "?self",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "entry",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "self",
+                        "signature_source": "function Put(?self $node, array $entry): self"
+                    },
+                    "Remove": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Remove",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "node",
+                                "type_source": "?self",
+                                "prefix_source": "?self",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "values",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "?self",
+                        "signature_source": "function Remove(?self $node, array $values): ?self"
+                    },
+                    "Walk": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "Walk",
+                        "static": true,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "node",
+                                "type_source": "?self",
+                                "prefix_source": "?self",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "lower",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "upper",
+                                "type_source": "array",
+                                "prefix_source": "array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "descending",
+                                "type_source": "bool",
+                                "prefix_source": "bool",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": "Generator",
+                        "signature_source": "function Walk(?self $node, array $lower, array $upper, bool $descending): Generator"
+                    },
+                    "__construct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreIndexNode",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__construct",
+                        "static": false,
+                        "constructor": true,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "entry",
+                                "type_source": "array",
+                                "prefix_source": "public readonly array",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            },
+                            {
+                                "name": "left",
+                                "type_source": "?self",
+                                "prefix_source": "public readonly ?self",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            },
+                            {
+                                "name": "right",
+                                "type_source": "?self",
+                                "prefix_source": "public readonly ?self",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": true,
+                                "default_kind": "source_expression",
+                                "default_source": "null",
+                                "optional": true
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function __construct(\n        public readonly array $entry,\n        public readonly ?self $left = null,\n        public readonly ?self $right = null\n    )"
+                    }
+                },
+                "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease": {
+                    "__construct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__construct",
+                        "static": false,
+                        "constructor": true,
+                        "returns_reference": false,
+                        "parameters": [
+                            {
+                                "name": "path",
+                                "type_source": "string",
+                                "prefix_source": "string",
+                                "by_reference": false,
+                                "variadic": false,
+                                "default_declared": false,
+                                "default_kind": null,
+                                "default_source": null,
+                                "optional": false
+                            }
+                        ],
+                        "return_type_source": null,
+                        "signature_source": "function __construct(string $path)"
+                    },
+                    "__destruct": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "__destruct",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": null,
+                        "signature_source": "function __destruct()"
+                    },
+                    "close": {
+                        "declared_by": "OmaPlugCtlPluginDataIndexedJsonlStoreReaderLease",
+                        "source_file": "OmaPlugCtlPluginDataIndexedJsonlStore.class.php",
+                        "name": "close",
+                        "static": false,
+                        "constructor": false,
+                        "returns_reference": false,
+                        "parameters": [],
+                        "return_type_source": "void",
+                        "signature_source": "function close(): void"
+                    }
+                },
+                "OmaPlugCtlPluginDataIndexedJsonlStoreRecoveryRequired": []
+            }
+        }
+    }
+}

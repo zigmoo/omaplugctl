@@ -1,0 +1,11 @@
+OmaPlugCtlPluginData###dil_php_85_model
+^Public author profile links cached by OmaPlugCtl.
+#@data-source=php_jsonl_indexed
+#@indexes=plugin_id;platform
+# Property|DataType|PrimaryKey|TSUpdt|Serial|Quickload|Nullable|Method|prop_desc
+plugin_id|string|y||||||
+platform|string|y||||||
+signature|string|||||||
+author|string|||||||
+url|string|||||||
+checked_at|timestamp|||||||

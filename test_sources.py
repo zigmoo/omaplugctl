@@ -58,18 +58,74 @@ class SourceTests(unittest.TestCase):
     def test_url_allowlist_and_repository_normalization(self):
         for suffix in ('', '.git', '/', '/tree/master', '/blob/master/README.md', '?tab=readme'):
             self.assertEqual(self.invoke('repository', REPO + suffix), REPO)
+        self.assertEqual(self.invoke('repository', 'https://www.github.com/example/plugin/releases/latest'), REPO)
+        self.assertEqual(self.invoke('repository', 'https://raw.githubusercontent.com/example/plugin/main/README.md'), REPO)
         for url in ('http://github.com/a/b', 'https://github.com.evil.test/a/b',
                     'https://github.com/a/../b', 'https://user@github.com/a/b', 'file:///x',
                     'https://github.com/a/b;touch-bad', 'https://github.com:443/a/b'):
             self.assertIsNone(self.invoke('repository', url))
         for url in ('https://x.com/name/status/123?s=20', 'https://twitter.com/name/status/123',
-                    'https://x.com/i/web/status/123'):
+                    'https://x.com/i/web/status/123', 'https://mobile.twitter.com/name/status/123'):
             self.assertEqual(self.invoke('post_id', url), '123')
 
     def test_x_expanded_links_evaluate_without_installing(self):
         result = self.invoke('check', 'https://x.com/name/status/123')['sourceEntries'][0]
         self.assertTrue(result['installable'])
         self.assertFalse((self.base / '.config/omarchy/plugins').exists())
+
+    def test_short_links_can_evaluate_a_repository_post_or_marketplace_plugin(self):
+        cache = {'schema': 1, 'fetchedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                 'entries': [{'id': 'example.plugin', 'name': 'Fixture', 'description': '', 'author': '',
+                              'searchText': 'fixture', 'repo': REPO, 'coverage': 'unverified',
+                              'verified': False, 'installable': True, 'kinds': ['service']}]}
+        (self.state / 'marketplace.json').write_text(json.dumps(cache))
+        for url in ('https://t.co/RepoLink', 'https://t.co/PostLink', 'https://t.co/ChainLink',
+                    'https://plugins.omarchy.org/plugin.html?id=example.plugin'):
+            with self.subTest(url=url):
+                row, = self.invoke('check', url)['sourceEntries']
+                self.assertTrue(row['installable'], row)
+                self.assertEqual(row['repo'], REPO)
+        self.assertFalse((self.base / '.config/omarchy/plugins').exists())
+
+    def test_marketplace_manual_setup_keeps_note_and_checks_manifest_identity(self):
+        note = 'Run the documented setup before enabling.'
+        cache = {'schema': 1, 'fetchedAt': datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                 'entries': [{'id': 'example.plugin', 'name': 'Fixture', 'description': '', 'author': '',
+                              'searchText': 'fixture', 'repo': REPO, 'coverage': 'unverified',
+                              'verified': False, 'installable': False, 'kinds': ['service'],
+                              'installNote': note}]}
+        path = self.state / 'marketplace.json'
+        path.write_text(json.dumps(cache))
+        row, = self.invoke('check', 'https://plugins.omarchy.org/plugin.html?id=example.plugin')['sourceEntries']
+        self.assertTrue(row['installable'], row)
+        self.assertEqual(row['installNote'], note)
+        self.assertFalse((self.base / '.config/omarchy/plugins').exists())
+        installed, = self.invoke('install', row['evaluation'])['sourceEntries']
+        self.assertTrue(installed['installed'])
+        self.assertFalse(installed['enabled'])
+        self.assertEqual(installed['installNote'], note)
+
+        cache['entries'][0]['id'] = 'example.other'
+        path.write_text(json.dumps(cache))
+        blocked, = self.invoke('check', 'https://plugins.omarchy.org/plugin.html?id=example.other')['sourceEntries']
+        self.assertFalse(blocked['installable'])
+        self.assertIn('different plugin id', blocked['description'])
+        self.assertNotIn('evaluation', blocked)
+
+    def test_short_links_in_posts_and_unsupported_destinations(self):
+        self.assertEqual(self.discover_posts({'123': {'text': 'See https://t.co/RepoLink'}}), [REPO])
+        with self.assertRaisesRegex(RuntimeError, 'Too many redirects'):
+            self.invoke('discover', 'https://t.co/LoopLink')
+        with self.assertRaisesRegex(ValueError, 'Use an HTTPS GitHub'):
+            self.invoke('discover', 'https://t.co/OtherLink')
+        links = self.invoke('post_links', {'text': 'See https://t.co/RepoLink', 'entities': {
+            'urls': [{'url': 'https://t.co/RepoLink', 'expanded_url': REPO}]}})
+        self.assertEqual(links, [REPO])
+
+    def test_project_page_links_and_common_shorteners(self):
+        self.assertEqual(self.invoke('discover', 'https://example.github.io/plugin/'), [{'repo': REPO}])
+        self.assertEqual(self.invoke('discover', 'https://bit.ly/ProjectLink'), [{'repo': REPO}])
+        self.assertEqual(self.discover_posts({'123': {'text': 'See https://bit.ly/ProjectLink'}}), [REPO])
 
     def test_text_links_ignore_profile_and_media_links(self):
         self.assertEqual(self.invoke('post_links', {'text': 'Try https://github.com/example/plugin.',
@@ -91,6 +147,26 @@ class SourceTests(unittest.TestCase):
     def test_symlinks_block_installation(self):
         (self.upstream / 'link').symlink_to('/etc/passwd'); self.commit()
         row = self.check(); self.assertFalse(row['installable']); self.assertIn('symlinks', row['description'])
+
+    def test_install_retry_recovers_after_the_checked_tree_was_moved(self):
+        row = self.check()
+        with patch.dict(os.environ, {'SOURCE_RESCAN_ERROR': '1'}):
+            with self.assertRaisesRegex(RuntimeError, 'rescan failed'):
+                self.invoke('install', row['evaluation'])
+        target = self.base / '.config/omarchy/plugins/example.plugin'
+        self.assertEqual(self.git('-C', target, 'rev-parse', 'HEAD'), row['verifiedCommit'])
+        installed, = self.invoke('install', row['evaluation'])['sourceEntries']
+        self.assertTrue(installed['installed'])
+        self.assertFalse(installed['enabled'])
+
+    def test_reinstall_confirms_the_saved_identity_and_leaves_plugin_disabled(self):
+        with self.assertRaisesRegex(RuntimeError, 'different plugin id'):
+            self.invoke('reinstall', REPO, 'example.changed')
+        self.assertFalse((self.base / '.config/omarchy/plugins').exists())
+        installed = self.invoke('reinstall', REPO, 'example.plugin')['sourceEntries'][0]
+        self.assertTrue(installed['installed'])
+        self.assertFalse(installed['enabled'])
+        self.assertTrue(self.invoke('enable', installed['evaluation'])['sourceEntries'][0]['enabled'])
 
     def test_invalid_manifest_blocks_installation(self):
         (self.upstream / 'manifest.json').write_text('{}'); self.commit()
@@ -146,8 +222,8 @@ class SourceTests(unittest.TestCase):
 
     def discover_posts(self, posts):
         script = r'''require $argv[1]; $request=json_decode(stream_get_contents(STDIN),true);
-        try { echo json_encode(OmaPlugCtl\Sources\discover('https://x.com/name/status/123',
-            function($id)use($request){if(!isset($request[$id]))throw new RuntimeException('Unavailable post');return $request[$id];})); }
+        try { echo json_encode(array_column(OmaPlugCtl\Sources\discover('https://x.com/name/status/123',
+            function($id)use($request){if(!isset($request[$id]))throw new RuntimeException('Unavailable post');return $request[$id];}),'repo')); }
         catch(Throwable $error){echo json_encode(['error'=>$error->getMessage()]);}'''
         result = subprocess.run(['php', '-n', '-r', script, str(ROOT / 'controller.php')],
                                 input=json.dumps(posts), text=True, capture_output=True, check=True)

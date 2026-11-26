@@ -4,6 +4,8 @@
   "name": "OmaPlugCtl",
   "version": "0.16.0",
   "author": "Jason Ziegler",
+  "authorGithub": "https://github.com/zigmoo",
+  "authorX": "https://x.com/zigmoo",
   "license": "Apache-2.0",
   "description": "Find, install, enable, arrange, inspect and update Omarchy plugins from one persistent menu.",
   "kinds": [

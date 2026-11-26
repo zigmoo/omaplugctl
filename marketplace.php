@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 namespace OmaPlugCtl\Marketplace;
-use function OmaPlugCtl\{state_root,json_file,save_json,valid_id,clean_text,fold,run,process_result,locked,now};
+use function OmaPlugCtl\{home,state_root,json_file,save_json,valid_id,clean_text,fold,run,process_result,locked,now,opens_without_bar};
 
 const CATALOG_URL='https://plugins.omarchy.org/catalog.json';
 const MAX_BYTES=33554432;
@@ -64,9 +64,22 @@ function installed_plugins(): array {
     if(!is_array($rows)||!array_is_list($rows))throw new \RuntimeException('Could not read the installed plugins.');
     $result=[];foreach($rows as$row)if(is_array($row)&&is_string($row['id']??null))$result[$row['id']]=$row;return $result;
 }
+function wait_for_discovery(string $id): ?array {
+    $deadline=microtime(true)+2;
+    do {
+        $installed=installed_plugins();
+        if (isset($installed[$id])) return $installed[$id];
+        usleep(75000);
+    } while (microtime(true)<$deadline);
+    return null;
+}
 function state(bool $refresh=false): array {
     [$catalog,$warning]=load($refresh);$installed=installed_plugins();$entries=[];
-    foreach($catalog['entries']as$row)$entries[]=[...$row,'installed'=>isset($installed[$row['id']]),'enabled'=>($installed[$row['id']]['enabled']??false)===true];
+    foreach($catalog['entries']as$row) {
+        $plugin=$installed[$row['id']]??null;
+        $entries[]=[...$row,'installed'=>$plugin!==null,'enabled'=>($plugin['enabled']??false)===true,
+            'opensWithoutBar'=>opens_without_bar($plugin['kinds']??null)];
+    }
     return ['entries'=>$entries,'fetchedAt'=>$catalog['fetchedAt'],'catalogStale'=>time()-strtotime($catalog['fetchedAt'])>86400,'message'=>$warning];
 }
 function entry(?string $id): array {
@@ -79,13 +92,30 @@ function entry(?string $id): array {
 function install(?string $id): array {
     $plugin=entry($id);
     if(!$plugin['installable'])throw new \InvalidArgumentException('This plugin requires manual setup. Open its source page for instructions.');
-    locked(state_root().'/marketplace.install.lock',function()use($id,$plugin){
-        if(isset(installed_plugins()[$id]))throw new \InvalidArgumentException('This plugin is already installed. Refresh the list.');
-        run(['omarchy','plugin','add',$plugin['repo'],'--yes'],180);$installed=installed_plugins()[$id]??null;
-        if($installed===null)throw new \RuntimeException('Installation did not confirm the expected plugin id. Refresh and inspect the installed plugins.');
-        if(!empty($installed['enabled']))throw new \RuntimeException('The plugin was installed but is already enabled. Inspect its state in Plugins.');
+    $message=locked(state_root().'/marketplace.install.lock',function()use($id,$plugin){
+        $name=$plugin['name'];
+        $installed=installed_plugins()[$id]??null;
+        if ($installed===null) {
+            $path=home().'/.config/omarchy/plugins/'.$id.'/manifest.json';
+            $onDisk=static fn()=> (json_file($path,null,262144)['id']??null)===$id;
+            if ($onDisk()) {
+                run(['omarchy-shell','shell','rescanPlugins']);
+            } else {
+                try {
+                    run(['omarchy','plugin','add',$plugin['repo'],'--yes'],180);
+                } catch (\RuntimeException $error) {
+                    if (!$onDisk()) throw $error;
+                }
+            }
+            $installed=wait_for_discovery($id);
+            if ($installed===null) {
+                if ($onDisk()) throw new \RuntimeException($name.' is on disk. Click Retry to check whether Omarchy has loaded it.');
+                throw new \RuntimeException('Omarchy couldn’t find '.$name.' after installation. Open Source for the current setup instructions.');
+            }
+        }
+        return $name.(!empty($installed['enabled'])?' is already enabled.':' installed. Click Enable when ready.');
     });
-    return [...state(),'message'=>$plugin['name'].' installed, disabled. Click Enable when ready.'];
+    return [...state(),'message'=>$message];
 }
 function enable(?string $id): array {
     $plugin=entry($id);if(!isset(installed_plugins()[$id]))throw new \InvalidArgumentException('Install this plugin before enabling it.');

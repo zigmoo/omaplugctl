@@ -63,6 +63,8 @@ Meaningful manifest authors take precedence. Missing or generic Omarchy attribut
 
 The author cache is keyed by repository, HEAD and candidate paths. Description hovers read cached/local data. About prefers explicit local source URLs or the checkout’s Git origin before consulting the marketplace.
 
+Resolved author links live in the Classbuilder-backed cache at `$XDG_STATE_HOME/omarchy/omaplugctl/plugin_data.jsonl` (default `~/.local/state/omarchy/omaplugctl/plugin_data.jsonl`). Entries are per plugin and platform and expire after seven days or when available attribution changes.
+
 Repository names, descriptions, commit subjects and errors must render as plain text. Data-changing controls show their final state only after it has been saved and read back.
 
 An untracked clone with generic attribution falls back to the matching built-in's history, identified by `omarchy.clonedFrom`. The footer labels that author/creation commit as upstream. Optional `omarchy.clonedAtCommit` (a full SHA) records the source revision actually copied; `omarchy.customizedBy` credits the local customization independently. Meaningful local author attribution still takes precedence.

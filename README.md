@@ -50,6 +50,18 @@ The menu moves with the bar and stays open, even when switching between horizont
 
 ## Find and arrange plugins
 
+The **Plugins** tab starts with focus in its search field. Type part of a plugin name, keyword or author to filter the installed list as you type. Choose **Enabled**, the first option in **Plugin kinds**, to show only enabled plugins. **Super+V** pastes into the Plugins search or the Install search and URL field.
+
+Hover an enabled plugin's row to highlight its visible icon on the same Omarchy bar.
+
+Rows reuse the live bar glyph or artwork when the widget exposes one. The list follows changes to the mounted icon and keeps the last observed glyph for this shell session. Hidden widgets and plugins without a visible slot have separate status labels.
+
+Choose **Update Available** in the kind dropdown to find plugins with a pending update. Combine it with **Enabled**, a plugin kind, or a search query.
+
+Click a row's star to save it. **Favorites** includes starred plugins after you disable or uninstall them. When a supported source repository was saved, use **Reinstall plugin** to reinstall it and then **Enable** when ready.
+
+Expand a plugin's controls to visit its source or its author's GitHub and X profiles. Use the copy icon beside any link to copy its URL. When author links are missing, OmaPlugCtl checks GitHub commit attribution or a matching repository publisher, then looks for an X handle on that public profile. The **About** tab lists OmaPlugCtl's features and links to Jason Ziegler's profiles.
+
 **Sort by** offers three views:
 
 - **Screen order**, the default, follows the bar’s sections and slots, then lists plugins without a position.
@@ -66,7 +78,7 @@ Click **Check updates** to fetch installed source repositories and look for chan
 
 When an update icon appears, hover it to see what changed, then click to update. The work happens in the background; progress and the result appear in the menu. The first scanned update may take longer while ClamAV downloads its signatures.
 
-Updates apply to the checkout actually running the plugin, including the target of a symlink. Local edits and unmatched local commits are preserved. Built-in plugins in Omarchy’s shared repository are updated with `omarchy update`.
+Updates apply to the checkout actually running the plugin, including the target of a symlink. If it has local edits, choose **Stash and update** or confirm **Discard and update**. Unmatched local commits stop the update. Built-in plugins in Omarchy’s shared repository are updated with `omarchy update`.
 
 If an update stops, read the row or footer message for the reason. Common causes are local changes, divergent commits, missing ClamAV, or a failed scan. Resolve the cause, then check again. [How updates work](docs/updates.md) explains reconciliation, backups and scanning limits.
 
@@ -94,7 +106,7 @@ The third tab, **Install**, searches the [Omarchy marketplace](https://plugins.o
 
 The first visit downloads the catalog. Later visits reuse the saved copy and read the installed state again. Searching never contacts a server. **Refresh** downloads a new catalog; the displayed refresh time tells you how old the saved copy is. If a refresh fails, the saved results remain available with an explanatory message.
 
-**Source** opens the repository. **Install** uses Omarchy's native installer and leaves the plugin disabled. After Omarchy confirms installation, the button becomes **Enable**. Enabling is a separate action and is also confirmed against Omarchy's installed state. Plugins requiring manual setup have a disabled action; use Source for their instructions.
+**Source** opens the repository. **Install** uses Omarchy's native installer and leaves the plugin disabled. Plugins that require extra setup can offer **Evaluate source**. OmaPlugCtl checks that the source declares the listed plugin ID, validates the manifest and scans the repository with ClamAV. If those checks pass, **Install** installs that checked commit disabled and keeps the setup note visible. Use **Source** to follow the upstream setup instructions. **Enable** is a separate action confirmed against Omarchy's installed state. For an enabled panel, overlay or menu without a bar widget, **Open** launches it from the Plugins or Install row.
 
 Marketplace verification covers the listed commit. The native installer fetches current upstream code, which can have changed since that verification. The Install tab keeps snapshot and update verification distinct; it does not pin installations to a verified commit or apply the update-only ClamAV setting to new installs. The [marketplace verification guide](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md) describes the evidence and its limits.
 

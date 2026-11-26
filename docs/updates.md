@@ -18,6 +18,12 @@ The worker rechecks repository identity, HEAD and local changes around these ste
 
 The worker survives a shell rescan and updates to OmaPlugCtl itself. After an update it requests a plugin rescan. Menu status polling reads local operation records; it does not repeatedly fetch upstream.
 
+## When the checkout has local changes
+
+Click the update icon to choose **Stash and update**, **Discard changes…**, or **Cancel**. Stashing saves staged and unstaged changes and untracked files in a Git stash. The update result identifies the stash. Use `git stash list` from the plugin checkout to find it.
+
+Discard requires a second confirmation and removes only the reviewed staged, unstaged, and untracked changes. Ignored files are protected. Fetch, history verification, and any enabled malware scan run before the checkout is changed. If local edits change after the choice is shown, reopen the update to review them again.
+
 ## When upstream history changes
 
 A repository can appear divergent even when its installed changes already exist upstream under different commit IDs. OmaPlugCtl checks this case before asking the user to reconcile it.
@@ -30,7 +36,7 @@ Before a qualifying reconciliation, the updater creates and verifies a backup br
 backup/omaplugctl/<timestamp>-<old-commit>
 ```
 
-It then uses a non-forced checkout to move the existing branch to the pinned upstream commit. Ignored files are protected from overwrite. It never stashes, rebases, creates a merge commit or hard-resets local work.
+It then uses a non-forced checkout to move the existing branch to the pinned upstream commit. Ignored files stay protected. Reconciliation uses the same local-edits choice. It uses neither rebase, merge commits, nor a hard reset.
 
 The backup keeps the old version addressable in Git. Backup branches are retained rather than automatically deleted.
 
@@ -71,7 +77,7 @@ Update cache, author cache, operation records, signatures and scanner logs live 
 
 | Message or condition | Meaning and next step |
 | --- | --- |
-| Local changes | The checkout has edits or untracked files. Inspect and preserve them before trying again. |
+| Local changes | Choose whether to stash or discard the reviewed edits and untracked files before proceeding. |
 | Local commits | The installed branch has commits ahead of upstream. Inspect that history before changing it. |
 | Update needs reconciliation | Histories diverged. A click checks for equivalent rewritten history; unmatched local commits stop the update. |
 | No update repository | OmaPlugCtl could not resolve an independent Git source. Use that plugin’s installation instructions. |

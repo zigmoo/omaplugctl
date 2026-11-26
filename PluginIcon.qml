@@ -8,6 +8,13 @@ Item {
   property bool defaultOmarchy: false
   property color ink: Commons.Color.popups.text
   property string fontFamily: Style.font.family
+  property var liveIcon: null
+  property bool captureArtwork: false
+  property int artworkTick: 0
+  property var capturedArtwork: null
+  property bool capturing: false
+  readonly property string liveGlyph: liveIcon && liveIcon.glyph ? liveIcon.glyph : ""
+  readonly property Item artwork: liveIcon && liveIcon.artwork ? liveIcon.artwork : null
   implicitWidth: Style.font.icon * (defaultOmarchy && hasOwnIcon ? 2 : 1) + (defaultOmarchy && hasOwnIcon ? Style.space(4) : 0)
   implicitHeight: Style.font.icon
   readonly property string sourceId: pluginId === "moo.dropbox" ? "omarchy.dropbox" : pluginId === "promaa.clock" ? "omarchy.clock" : pluginId === "moo.workspaces" ? "omarchy.workspaces" : pluginId
@@ -23,7 +30,20 @@ Item {
     "crmne.hyprmoncfg": "󰍺", "moo.omathemectl": "󰏘", "moo.omaremotes": "󰢹"
   })
   readonly property bool custom: ["moo.omaplugctl", "omarchy.tailscale", "omarchy.dropbox", "com.80kv.omatris", "bjarneo.ring-light", "com.omastorm.radar"].indexOf(sourceId) >= 0
-  readonly property bool hasOwnIcon: custom || (marks[sourceId] !== undefined && sourceId !== "omarchy.menu")
+  readonly property bool hasOwnIcon: sourceId !== "omarchy.menu" && (liveGlyph !== "" || capturedArtwork !== null || custom || marks[sourceId] !== undefined)
+  function capture() {
+    if (!captureArtwork || capturing || !artwork || !artwork.visible || artwork.width <= 0 || artwork.height <= 0) return
+    let item = artwork
+    capturing = true
+    if (!item.grabToImage(function(result) {
+      if (!root) return
+      root.capturing = false
+      if (root.captureArtwork && root.artwork === item && result) root.capturedArtwork = result
+    }, Qt.size(48, 48))) capturing = false
+  }
+  onArtworkChanged: { capturedArtwork = null; capture() }
+  onCaptureArtworkChanged: if (captureArtwork) capture()
+  onArtworkTickChanged: capture()
   Text {
     objectName: "omarchyIdentityIcon"
     visible: root.defaultOmarchy
@@ -44,17 +64,27 @@ Item {
     height: root.height
   Text {
     anchors.centerIn: parent
-    visible: !root.custom
-    text: root.marks[root.sourceId] || "󰐱"
+    objectName: "pluginGlyph"
+    visible: root.capturedArtwork === null && (root.liveGlyph !== "" || !root.custom)
+    text: root.liveGlyph || root.marks[root.sourceId] || "󰐱"
     color: root.ink
-    font.family: root.sourceId === "omarchy.menu" ? "omarchy" : root.fontFamily
+    font.family: root.liveGlyph && root.liveIcon.font ? root.liveIcon.font : root.sourceId === "omarchy.menu" ? "omarchy" : root.fontFamily
     font.pixelSize: Math.min(root.width, root.height)
+    rotation: root.liveGlyph ? root.liveIcon.rotation : 0
     textFormat: Text.PlainText
+  }
+  Image {
+    objectName: "pluginLiveArtwork"
+    anchors.fill: parent
+    visible: root.capturedArtwork !== null
+    source: root.capturedArtwork ? root.capturedArtwork.url : ""
+    fillMode: Image.PreserveAspectFit
+    cache: false
   }
   Canvas {
     id: drawing
     anchors.fill: parent
-    visible: root.custom
+    visible: root.custom && !root.liveGlyph && root.capturedArtwork === null
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
     Connections { target: root; function onInkChanged() { drawing.requestPaint() }

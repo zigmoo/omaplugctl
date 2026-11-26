@@ -24,8 +24,11 @@ Column {
   property bool verifiedOnly: true
   property string action: ""
   property string pendingId: ""
+  property string failedInstallId: ""
   property bool working: false
   readonly property bool busy: working || process.running
+  readonly property bool installing: action === "catalog-install" || action === "source-install"
+  readonly property bool showInstallErrorInRow: failedInstallId !== "" && results.some(entry => actionId(entry) === failedInstallId)
   readonly property Item focusTarget: search
   readonly property var results: {
     if (urlInput) return sourceEntries
@@ -51,19 +54,25 @@ Column {
   signal pluginsChanged()
   spacing: Style.space(8)
 
+  function actionId(entry) { return entry.directSource ? entry.evaluation : entry.id }
   function invoke(operation, pid, refresh) {
     if (busy || host.busy) return
     working = true
     action = operation
     pendingId = pid || ""
     failed = false
-    message = host.text(operation === "source-check" ? "install.evaluating" : operation === "catalog-install" || operation === "source-install" ? "install.installing" : operation === "catalog-enable" || operation === "source-enable" ? "install.enabling" : operation === "catalog-source" || operation === "source-open" ? "install.opening" : "install.loading")
+    failedInstallId = ""
+    message = host.text(operation === "source-check" ? "install.evaluating" : installing ? "install.installing" : operation === "catalog-enable" || operation === "source-enable" ? "install.enabling" : operation === "open" ? "plugin.opening" : operation === "catalog-source" || operation === "source-open" ? "install.opening" : "install.loading")
     if (operation === "source-check") { sourceEntries = []; evaluatedInput = search.text.trim() }
     var argv = host.helperPrefix.concat([host.helper, operation])
     if (pid) argv.push(pid)
     if (refresh) argv.push("--refresh")
     process.command = argv
     process.running = true
+  }
+  function evaluateMarketplace(id) {
+    search.text = "https://plugins.omarchy.org/plugin.html?id=" + encodeURIComponent(id)
+    invoke("source-check", search.text, false)
   }
   function activate() {
     if (busy) return
@@ -95,7 +104,6 @@ Column {
     if (entry.stars) lines.push(host.text("install.stars").arg(Commons.I18n.formatNumber(entry.stars)))
     lines.push(entry.directSource ? entry.validation : host.text("install." + entry.coverage))
     if (entry.verifiedCommit) lines.push(host.text("install.evaluatedCommit").arg(entry.verifiedCommit.slice(0, 12)))
-    if (entry.installNote) lines.push(entry.installNote)
     lines.push(entry.repo || "")
     return lines.filter(function(line) { return !!line }).join("\n")
   }
@@ -150,6 +158,7 @@ Column {
         root.failed = true
         root.message = errors.text || root.host.text("install.failed")
       }
+      if (root.failed && root.installing) root.failedInstallId = root.pendingId
       root.pendingId = ""
       root.working = false
     }
@@ -249,6 +258,9 @@ Column {
     delegate: Column {
       id: row
       required property var modelData
+      readonly property bool canEvaluate: !modelData.directSource && !modelData.installed && !modelData.installable && !!modelData.repo
+      readonly property bool canOpen: modelData.installed === true && modelData.enabled === true && modelData.opensWithoutBar === true
+      readonly property bool installFailed: root.failedInstallId !== "" && root.actionId(modelData) === root.failedInstallId
       width: list.width - (scroll.visible ? scroll.width + Style.space(6) : 0)
       spacing: Style.space(3)
       HoverHandler {
@@ -325,14 +337,20 @@ Column {
         Ui.Button {
           id: installButton
           objectName: "catalogInstallButton"
-          text: root.pendingId === (row.modelData.directSource ? row.modelData.evaluation : row.modelData.id) ? root.host.text("install.working")
+          text: root.pendingId === root.actionId(row.modelData) || (root.action === "open" && root.pendingId === row.modelData.id) ? root.host.text("install.working")
+            : row.canOpen ? root.host.text("plugin.openAction")
             : row.modelData.installed ? root.host.text(row.modelData.enabled ? "install.installed" : "install.enable")
-            : root.host.text(row.modelData.installable ? "install.action" : row.modelData.directSource ? "install.blocked" : "install.manual")
+            : row.installFailed ? root.host.text("install.retry")
+            : root.host.text(row.modelData.installable ? "install.action" : row.canEvaluate ? "install.evaluateSource" : row.modelData.directSource ? "install.blocked" : "install.manual")
           fontFamily: root.host.themeFont
           foreground: Commons.Color.accent
           focusable: true
-          enabled: !root.busy && !root.host.busy && (row.modelData.installed ? !row.modelData.enabled : row.modelData.installable)
-          onClicked: root.invoke(row.modelData.directSource ? (row.modelData.installed ? "source-enable" : "source-install") : (row.modelData.installed ? "catalog-enable" : "catalog-install"), row.modelData.directSource ? row.modelData.evaluation : row.modelData.id, false)
+          enabled: !root.busy && !root.host.busy && (row.canOpen || (row.modelData.installed ? !row.modelData.enabled : row.modelData.installable || row.canEvaluate))
+          onClicked: {
+            if (row.canOpen) root.invoke("open", row.modelData.id, false)
+            else if (row.canEvaluate) root.evaluateMarketplace(row.modelData.id)
+            else root.invoke(row.modelData.directSource ? (row.modelData.installed ? "source-enable" : "source-install") : (row.modelData.installed ? "catalog-enable" : "catalog-install"), root.actionId(row.modelData), false)
+          }
         }
       }
       PluginKindBadges {
@@ -362,6 +380,28 @@ Column {
         font.family: root.host.themeFont
         font.pixelSize: Style.font.caption
       }
+      Text {
+        objectName: "installRowError"
+        width: parent.width
+        visible: row.installFailed
+        text: visible ? root.message : ""
+        textFormat: Text.PlainText
+        wrapMode: Text.Wrap
+        color: Commons.Color.urgent
+        font.family: root.host.themeFont
+        font.pixelSize: Style.font.caption
+      }
+      Text {
+        objectName: "installSetupNote"
+        width: parent.width
+        visible: text !== ""
+        text: row.modelData.directSource || !row.modelData.installable ? (row.modelData.installNote || "") : ""
+        textFormat: Text.PlainText
+        wrapMode: Text.WordWrap
+        color: Qt.alpha(Commons.Color.popups.text, 0.85)
+        font.family: root.host.themeFont
+        font.pixelSize: Style.font.caption
+      }
       Ui.PanelSeparator { width: parent.width; foreground: Qt.alpha(Commons.Color.popups.text, 0.3) }
     }
     Text {
@@ -380,12 +420,12 @@ Column {
     id: status
     objectName: "installStatusText"
     width: parent.width
-    text: root.message || root.host.text("install.footer")
+    text: (!root.showInstallErrorInRow && root.message) || root.host.text("install.footer")
     textFormat: Text.PlainText
     wrapMode: Text.WordWrap
     maximumLineCount: 4
     elide: Text.ElideRight
-    color: root.failed ? Commons.Color.urgent : Qt.alpha(Commons.Color.popups.text, 0.7)
+    color: root.failed && !root.showInstallErrorInRow ? Commons.Color.urgent : Qt.alpha(Commons.Color.popups.text, 0.7)
     font.family: root.host.themeFont
     font.pixelSize: Style.font.caption
   }

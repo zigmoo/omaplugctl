@@ -15,11 +15,25 @@ Item {
   property string screenName: ""
   property var widgetAnchors: []
   property bool menuOpen: false
+  property Item hoveredBarRow: null
   property var plugins: []
-  readonly property var filteredPlugins: kindFilter.filteredPlugins
+  property var uninstalledFavorites: []
+  property var hiddenBarWidgets: ({})
+  property int artworkTick: 0
+  readonly property var filteredPlugins: {
+    var terms = pluginSearch.text.trim().toLowerCase().split(/\s+/)
+    var candidates = kindFilter.filteredPlugins
+    if (!terms[0]) return candidates
+    return candidates.filter(function(plugin) {
+      var text = [plugin.name, plugin.id, plugin.author, plugin.description].concat(plugin.keywords || []).join(" ").toLowerCase()
+      return terms.every(function(term) { return text.indexOf(term) !== -1 })
+    })
+  }
   property string message: ""
   property bool failed: false
   property string confirmingId: ""
+  property var editReview: null
+  property bool confirmDiscard: false
   property string pendingId: ""
   property string pendingName: ""
   property string pendingAction: ""
@@ -67,16 +81,28 @@ Item {
     return lines.join("\n")
   }
   function updatePlugin(plugin) {
-    if (plugin.operation && plugin.operation.status === "working") return
+    if (editReview || (plugin.operation && plugin.operation.status === "working")) return
     if (plugin.update && ["available", "rewritten", "diverged"].indexOf(plugin.update.status) !== -1) invoke("update", plugin.id)
     else { failed = true; message = strings.t(plugin.update && plugin.update.status === "diverged" ? "updates.divergedHelp" : "updates.dirtyHelp") }
+  }
+  function clearEditReview() { editReview = null; confirmDiscard = false }
+  function applyEditChoice(action) {
+    if (!editReview || busy) return
+    var review = editReview
+    clearEditReview()
+    invoke("update", review.pluginId, "", "", -1, false, {action: action, token: review.token})
   }
   function text(key) { return strings.t(key) }
   function countText(key, count) { return strings.tn(key, count) }
   function selectTab(name) {
+    if (name !== "plugins") clearEditReview()
     currentTab = name
     Qt.callLater(function() {
-      if (name === "install" && runtime.ready) installPanel.activate()
+      if (name !== root.currentTab || !root.menuOpen) return
+      if (name === "about") aboutGithub.forceActiveFocus()
+      else if (!runtime.ready) runtime.forceActiveFocus()
+      else if (name === "plugins") pluginSearch.forceActiveFocus()
+      else if (name === "install") installPanel.activate()
       else if (name === "config") configSortPicker.forceActiveFocus()
     })
   }
@@ -148,7 +174,7 @@ Item {
     }
   }
 
-  function close() { menuOpen = false; confirmingId = "" }
+  function close() { menuOpen = false; confirmingId = ""; hoveredBarRow = null; clearEditReview() }
   function attach(item, host) {
     var window = item ? item.QsWindow.window : null
     if (!window || !window.screen) return
@@ -188,6 +214,7 @@ Item {
     if (!busy && edge !== barPosition) invoke("position", edge)
   }
   function showReplacementBars() {
+    pluginSearch.clear()
     kindFilter.values = ["bar"]
     Qt.callLater(function() { pluginList.positionViewAtBeginning() })
     failed = false
@@ -196,20 +223,40 @@ Item {
     })
     message = strings.t(hasReplacement ? "bar.chooseReplacementHelp" : "bar.noReplacement")
   }
-  function invoke(action, pluginId, section, source, index, confirmed) {
+  function isFavoriteAction(action) { return action === "favorite" || action === "unfavorite" }
+  function acceptFavoriteResult(result) {
+    var id = pendingId
+    var oldY = pluginList.contentY
+    var saved = result.uninstalledFavorites || []
+    var favorite = result.plugins.concat(saved).some(function(plugin) { return plugin.id === id && plugin.favorite })
+    var overrides = Object.assign({}, kindFilter.favoriteOverrides)
+    overrides[id] = favorite
+    kindFilter.favoriteOverrides = overrides
+    if (!plugins.some(function(plugin) { return plugin.id === id })) uninstalledFavorites = saved
+    if (kindFilter.favoritesOnly) Qt.callLater(function() {
+      pluginList.forceLayout()
+      var first = pluginList.originY
+      var last = first + Math.max(0, pluginList.contentHeight - pluginList.height)
+      pluginList.contentY = Math.max(first, Math.min(oldY, last))
+    })
+  }
+  function invoke(action, pluginId, section, source, index, confirmed, editChoice) {
     if (!runtime.ready || busy || (action !== "list" && action !== "check-updates" && !pluginId)) return
     pendingAction = action
     pendingId = action === "position" || action === "sort" || action === "check-updates" ? "" : (pluginId || "")
     pendingName = ""
-    for (var i = 0; i < plugins.length; i++) if (plugins[i].id === pendingId) pendingName = plugins[i].name
+    var selected = plugins.concat(uninstalledFavorites).find(function(plugin) { return plugin.id === pendingId })
+    if (selected) pendingName = selected.name
     var argv = helperPrefix.concat([helper, action])
     if (action === "position") argv.push("--edge", pluginId)
     else if (action === "sort") argv.push(pluginId)
     else if (action !== "list" && action !== "check-updates") argv.push(pendingId)
     if (action === "move") argv.push("--section", section, "--source", source, "--index", String(index))
     if (confirmed) argv.push("--confirmed")
+    if (editChoice) argv.push("--edits", editChoice.action, "--review", editChoice.token)
     if (action === "use-bar" || action === "reset-bar") message = strings.t("bar.switching")
-    else message = action === "icon-scale" ? strings.t("config.iconSaving") : action === "workspace-count" ? strings.t("config.workspaceSaving") : action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
+    else if (action.indexOf("copy-") === 0) message = strings.t("plugin.copying")
+    else if (!isFavoriteAction(action)) message = action === "icon-scale" ? strings.t("config.iconSaving") : action === "workspace-count" ? strings.t("config.workspaceSaving") : action === "position" ? strings.t("bar.moving") : action === "sort" ? strings.t("sort.saving") : action === "check-updates" ? strings.t("updates.checking") : action === "list" ? "Loading plugins…" : "Working on " + pendingName + "…"
     failed = false
     confirmingId = ""
     controller.command = argv
@@ -223,7 +270,7 @@ Item {
     function hide(): void { root.close() }
     function position(edge: string): void { root.moveBar(edge) }
     function sort(order: string): void { root.invoke("sort", order) }
-    function tab(name: string): void { if (["plugins", "config", "install"].indexOf(name) !== -1) root.selectTab(name) }
+    function tab(name: string): void { if (["plugins", "config", "install", "about"].indexOf(name) !== -1) root.selectTab(name) }
     function status(): string {
       return JSON.stringify({open: root.menuOpen, visible: panel.visible, runtimeReady: runtime.ready, position: root.barPosition, busy: root.busy, anchored: !!root.anchorItem, screen: root.screenName, sortOrder: root.sortOrder, sortIndex: sortPicker.currentIndex, tab: root.currentTab, catalogLoaded: installPanel.loaded, catalogResults: installPanel.results.length, barIconScale: root.barIconScale, barIconSize: Style.bar.iconSize, workspaceCount: root.workspaceSettings ? root.workspaceSettings.count : null, firstPlugins: root.plugins.slice(0, 5).map(function(plugin) { return plugin.id })})
     }
@@ -237,6 +284,7 @@ Item {
         try {
           var result = JSON.parse(text)
           if (result.ok) {
+            root.hiddenBarWidgets = result.hiddenBarWidgets || ({})
             var changed = root.plugins.some(function(p) { return JSON.stringify(p.operation || {}) !== JSON.stringify(result.operations[p.id] || {}) })
             if (changed) root.refresh()
           }
@@ -255,13 +303,29 @@ Item {
     stdout: StdioCollector { id: output; waitForEnd: true }
     stderr: StdioCollector { id: errors; waitForEnd: true }
     onExited: function(exitCode, exitStatus) {
+      var favoriteAction = root.isFavoriteAction(root.pendingAction)
       try {
         var result = JSON.parse(output.text)
         root.failed = !result.ok
-        root.message = (root.pendingName ? root.pendingName + ": " : "") + (result.message || "")
+        if (result.ok && root.pendingAction.indexOf("copy-") === 0) {
+          root.message = strings.t("plugin.copied")
+          return
+        }
+        if (!favoriteAction || !result.ok) root.message = (root.pendingName ? root.pendingName + ": " : "") + (result.message || "")
+        if (result.ok && favoriteAction) {
+          root.acceptFavoriteResult(result)
+          return
+        }
         if (result.ok) {
           var oldY = root.pendingAction === "sort" ? 0 : pluginList.contentY
           root.plugins = result.plugins
+          kindFilter.favoriteOverrides = ({})
+          root.uninstalledFavorites = result.uninstalledFavorites || []
+          root.hiddenBarWidgets = result.hiddenBarWidgets || ({})
+          if (result.editReview && root.menuOpen && root.currentTab === "plugins") {
+            root.editReview = result.editReview
+            Qt.callLater(function() { if (root.editReview) cancelEditReview.forceActiveFocus() })
+          }
           root.barPosition = result.barPosition
           root.sortOrder = result.sortOrder || "screen"
           root.scanBeforeUpdate = result.scanBeforeUpdate !== false
@@ -274,8 +338,25 @@ Item {
       } catch (e) {
         root.failed = true
         root.message = errors.text || "Could not read plugin state. Try Refresh."
+      } finally {
+        if (favoriteAction) root.pendingAction = ""
       }
     }
+  }
+  BarIconHighlight {
+    barContent: panel.anchorWindow ? panel.anchorWindow.contentItem : null
+    pluginId: root.menuOpen && root.currentTab === "plugins" && root.hoveredBarRow && root.hoveredBarRow.barHovered
+      ? root.hoveredBarRow.plugin.id : ""
+  }
+  LiveBarIcons {
+    id: liveBarIcons
+    barContent: root.menuOpen && root.currentTab === "plugins" && panel.anchorWindow ? panel.anchorWindow.contentItem : null
+  }
+  Timer {
+    interval: 1000
+    repeat: true
+    running: liveBarIcons.hasArtwork
+    onTriggered: root.artworkTick++
   }
   Ui.KeyboardPanel {
     id: panel
@@ -283,20 +364,27 @@ Item {
     owner: root
     anchorItem: root.anchorItem
     open: root.menuOpen
-    focusTarget: !runtime.ready ? runtime : root.currentTab === "install" ? installPanel.focusTarget : root.currentTab === "config" ? configSortPicker : edgePicker.focusTarget
+    focusTarget: root.currentTab === "about" ? aboutGithub : !runtime.ready ? runtime : root.currentTab === "install" ? installPanel.focusTarget : root.currentTab === "config" ? configSortPicker : pluginSearch
     contentWidth: fittedContentWidth(Style.space(420))
     contentHeight: fittedContentHeight(Style.space(600))
     Column {
       id: frame
       objectName: "managerFrame"
+      readonly property TextInput focusedEditor: Window.window ? (Window.window.activeFocusItem as TextInput) : null
       anchors.fill: parent
       spacing: Style.space(14)
+      Shortcut {
+        // Omarchy can translate Super+V to Ctrl+Shift+V over a terminal.
+        sequences: ["Meta+V", "Ctrl+Shift+V"]
+        enabled: panel.open && frame.focusedEditor !== null && frame.focusedEditor.canPaste === true
+        onActivated: frame.focusedEditor.paste()
+      }
       RuntimeCheck {
         id: runtime
         host: root
         width: parent.width
-        visible: !ready
-        onAvailable: { if (!settingsReader.running) settingsReader.running = true; if (root.menuOpen) { root.refresh(); if (root.currentTab === "install") installPanel.activate() } }
+        visible: !ready && root.currentTab !== "about"
+        onAvailable: { if (!settingsReader.running) settingsReader.running = true; if (root.menuOpen) { root.refresh(); root.selectTab(root.currentTab) } }
       }
       Row {
         id: tabs
@@ -325,6 +413,14 @@ Item {
           fontFamily: root.themeFont
           focusable: true
           onClicked: root.selectTab("install")
+        }
+        Ui.Button {
+          objectName: "aboutTabButton"
+          text: strings.t("tabs.about")
+          foreground: root.currentTab === "about" ? Commons.Color.accent : Commons.Color.popups.text
+          fontFamily: root.themeFont
+          focusable: true
+          onClicked: root.selectTab("about")
         }
       }
       Column {
@@ -473,14 +569,73 @@ Item {
         visible: runtime.ready && root.currentTab === "install"
         onPluginsChanged: Qt.callLater(root.refresh)
       }
+      Flickable {
+        objectName: "managerAboutPanel"
+        visible: root.currentTab === "about"
+        width: parent.width
+        height: Math.max(0, frame.height - tabs.height - frame.spacing)
+        contentHeight: aboutContent.implicitHeight
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        Keys.onEscapePressed: root.close()
+        Controls.ScrollBar.vertical: Controls.ScrollBar { policy: Controls.ScrollBar.AsNeeded }
+        Column {
+          id: aboutContent
+          width: parent.width - Style.space(8)
+          spacing: Style.space(10)
+          Ui.PanelHero {
+            title: "OmaPlugCtl"
+            meta: "Jason Ziegler"
+            foreground: Commons.Color.popups.text
+            fontFamily: root.themeFont
+            iconComponent: Component {
+              PluginIcon { pluginId: root.moduleName; ink: Commons.Color.popups.text; width: Style.font.display; height: width }
+            }
+          }
+          Row {
+            spacing: Style.space(8)
+            Ui.Button {
+              id: aboutGithub
+              objectName: "aboutGithubProfile"
+              text: strings.t("about.github")
+              fontFamily: root.themeFont
+              foreground: Commons.Color.popups.text
+              focusable: true
+              onClicked: Qt.openUrlExternally("https://github.com/zigmoo")
+            }
+            Ui.Button {
+              objectName: "aboutXProfile"
+              text: strings.t("about.x")
+              fontFamily: root.themeFont
+              foreground: Commons.Color.popups.text
+              focusable: true
+              onClicked: Qt.openUrlExternally("https://x.com/zigmoo")
+            }
+          }
+          Ui.PanelSeparator { width: parent.width; foreground: Commons.Color.popups.text }
+          Repeater {
+            model: ["favorites", "manage", "find", "install", "updates", "bar"]
+            delegate: Text {
+              required property string modelData
+              width: aboutContent.width
+              text: "• " + strings.t("about.feature." + modelData)
+              textFormat: Text.PlainText
+              wrapMode: Text.WordWrap
+              color: Commons.Color.popups.text
+              font.family: root.themeFont
+              font.pixelSize: Style.font.body
+            }
+          }
+        }
+      }
       Ui.PanelHero {
         id: hero
         visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
         title: "OmaPlugCtl"
-        meta: kindFilter.allSelected
+        meta: kindFilter.allSelected && !pluginSearch.text.trim()
           ? strings.t("plugins.count").arg(Commons.I18n.formatNumber(root.plugins.length)).arg(Commons.I18n.formatNumber(root.plugins.filter(function(p) { return p.enabled }).length))
-          : strings.t("plugins.filteredCount").arg(Commons.I18n.formatNumber(root.filteredPlugins.length)).arg(Commons.I18n.formatNumber(root.plugins.length)).arg(Commons.I18n.formatNumber(root.filteredPlugins.filter(function(p) { return p.enabled }).length))
+          : strings.t("plugins.filteredCount").arg(Commons.I18n.formatNumber(root.filteredPlugins.length)).arg(Commons.I18n.formatNumber(kindFilter.plugins.length)).arg(Commons.I18n.formatNumber(root.filteredPlugins.filter(function(p) { return p.enabled }).length))
         foreground: Commons.Color.popups.text
         fontFamily: root.themeFont
         iconComponent: Component {
@@ -512,6 +667,25 @@ Item {
             }
           }
         }
+      }
+      SearchField {
+        id: pluginSearch
+        objectName: "installedPluginSearchField"
+        visible: runtime.ready && root.currentTab === "plugins"
+        enabled: root.confirmingId === ""
+        width: parent.width
+        placeholderText: strings.t("plugins.search")
+        clearLabel: strings.t("search.clear")
+        font.family: root.themeFont
+        foreground: Commons.Color.popups.text
+        maximumLength: 256
+        selectByMouse: true
+        onTextChanged: pluginList.positionViewAtBeginning()
+        Keys.onEscapePressed: {
+          if (text !== "") clear()
+          else root.close()
+        }
+        Keys.onDownPressed: if (pluginList.count) pluginList.forceActiveFocus()
       }
       Row {
         id: barControls
@@ -556,7 +730,7 @@ Item {
             id: kindFilter
             width: parent.width
             host: root
-            plugins: root.plugins
+            plugins: favoritesOnly ? root.plugins.concat(root.uninstalledFavorites) : root.plugins
             enabled: root.confirmingId === ""
             onValuesChanged: { root.confirmingId = ""; Qt.callLater(function() { pluginList.positionViewAtBeginning() }) }
           }
@@ -571,7 +745,7 @@ Item {
               fontFamily: root.themeFont
               focusable: true
               enabled: root.confirmingId === ""
-              onClicked: kindFilter.values = kindFilter.resolvedOptions.map(function(option) { return option.value })
+              onClicked: kindFilter.selectAllKinds()
             }
             Ui.Button {
               objectName: "pluginKindsNoneButton"
@@ -612,6 +786,56 @@ Item {
           }
         }
       }
+      Column {
+        id: editReviewControls
+        width: parent.width
+        visible: runtime.ready && root.currentTab === "plugins" && root.editReview !== null
+        spacing: Style.space(6)
+        Keys.onEscapePressed: root.clearEditReview()
+        Text {
+          width: parent.width
+          text: root.editReview ? strings.t(root.confirmDiscard ? "updates.confirmDiscard" : "updates.chooseEdits").arg(root.editReview.name) : ""
+          color: Commons.Color.popups.text
+          font.family: root.themeFont
+          font.pixelSize: Style.font.body
+          textFormat: Text.PlainText
+          wrapMode: Text.WordWrap
+        }
+        Row {
+          spacing: Style.space(6)
+          Ui.Button {
+            objectName: "stashAndUpdateButton"
+            text: strings.t("updates.stashAndUpdate")
+            visible: !root.confirmDiscard
+            fontFamily: root.themeFont
+            foreground: Commons.Color.popups.text
+            focusable: true
+            enabled: !root.busy
+            onClicked: root.applyEditChoice("stash")
+          }
+          Ui.Button {
+            objectName: "discardAndUpdateButton"
+            text: strings.t(root.confirmDiscard ? "updates.discardAndUpdate" : "updates.discard")
+            fontFamily: root.themeFont
+            foreground: Commons.Color.urgent
+            focusable: true
+            enabled: !root.busy
+            onClicked: {
+              if (root.confirmDiscard) root.applyEditChoice("discard")
+              else { root.confirmDiscard = true; cancelEditReview.forceActiveFocus() }
+            }
+          }
+          Ui.Button {
+            id: cancelEditReview
+            objectName: "cancelEditReviewButton"
+            text: strings.t("updates.cancel")
+            fontFamily: root.themeFont
+            foreground: Commons.Color.popups.text
+            focusable: true
+            onClicked: root.clearEditReview()
+          }
+        }
+      }
       Ui.PanelSeparator { visible: runtime.ready && root.currentTab === "plugins"; width: parent.width; foreground: Commons.Color.popups.text }
       AcceleratedListView {
         id: pluginList
@@ -619,7 +843,7 @@ Item {
         wheelStep: Style.space(56)
         visible: runtime.ready && root.currentTab === "plugins"
         width: parent.width
-        height: Math.max(0, frame.height - tabs.height - hero.height - barControls.height - status.height - Style.space(1) - frame.spacing * 5)
+        height: Math.max(0, frame.height - tabs.height - hero.height - pluginSearch.height - barControls.height - status.height - Style.space(1) - frame.spacing * 6 - (editReviewControls.visible ? editReviewControls.height + frame.spacing : 0))
         clip: true
         spacing: Style.space(5)
         model: root.filteredPlugins
@@ -633,15 +857,27 @@ Item {
           }
         }
         delegate: PluginRow {
+          id: pluginRow
           required property var modelData
           width: pluginList.width - (scroll.visible ? scroll.width + Style.space(6) : 0)
           height: implicitHeight
           plugin: modelData
           host: root
+          barHidden: root.hiddenBarWidgets[modelData.id] === true
+          liveIcon: liveBarIcons.forPlugin(modelData.id)
+          captureArtwork: root.menuOpen && pluginList.visible && pluginRow.y + pluginRow.height > pluginList.contentY
+            && pluginRow.y < pluginList.contentY + pluginList.height
+          artworkTick: root.artworkTick
+          favorite: kindFilter.isFavorite(modelData)
+          favoritePending: root.pendingId === modelData.id && root.isFavoriteAction(root.pendingAction)
+          onBarHoveredChanged: {
+            if (barHovered) root.hoveredBarRow = pluginRow
+            else if (root.hoveredBarRow === pluginRow) root.hoveredBarRow = null
+          }
         }
         Text {
           visible: root.filteredPlugins.length === 0 && !root.busy
-          text: strings.t("kinds.empty")
+          text: strings.t(pluginSearch.text.trim() ? (kindFilter.favoritesOnly ? "plugins.noFavoriteMatches" : "plugins.noSearchMatches") : "kinds.empty")
           textFormat: Text.PlainText
           color: Commons.Color.popups.text
           font.family: root.themeFont
@@ -651,7 +887,7 @@ Item {
       Text {
         id: status
         width: parent.width
-        visible: runtime.ready && root.currentTab !== "install" && (root.message !== "" || root.currentTab === "plugins")
+        visible: runtime.ready && (root.currentTab === "plugins" || (root.currentTab === "config" && root.message !== ""))
         text: root.message || "Scroll to see all plugins"
         color: root.failed ? Commons.Color.urgent : Qt.darker(Commons.Color.popups.text, 1.4)
         font.family: root.themeFont

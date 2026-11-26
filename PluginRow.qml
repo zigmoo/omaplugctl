@@ -8,11 +8,20 @@ Item {
   required property var plugin
   required property var host
   property bool expanded: false
+  property bool favorite: plugin.favorite === true
+  property bool favoritePending: false
+  property bool barHidden: false
+  property var liveIcon: null
+  property bool captureArtwork: false
+  property int artworkTick: 0
+  readonly property bool notInstalled: plugin.installed === false
+  readonly property bool barHovered: visible && rowHover.hovered && plugin.enabled === true && plugin.isBarWidget === true
   readonly property bool confirming: host.confirmingId === plugin.id
   readonly property bool confirmingPause: confirming && plugin.isSelf
   readonly property bool available: !host.busy && host.confirmingId === ""
   readonly property bool isFullBar: (plugin.kinds || []).indexOf("bar") !== -1
   readonly property bool isActiveBar: isFullBar && plugin.active === true
+  readonly property bool opensWithoutBar: plugin.canOpen === true && !plugin.isBarWidget && !isFullBar
   readonly property color ink: Commons.Color.popups.text
   implicitHeight: body.implicitHeight + Style.space(8)
 
@@ -83,6 +92,9 @@ Item {
         defaultOmarchy: root.plugin.firstParty === true && !root.plugin.clonedFrom
         ink: root.ink
         fontFamily: root.host.themeFont
+        liveIcon: root.liveIcon
+        captureArtwork: root.captureArtwork
+        artworkTick: root.artworkTick
         width: implicitWidth
         height: Style.font.icon
       }
@@ -137,12 +149,14 @@ Item {
         Text {
           width: parent.width
           text: {
+            if (root.notInstalled) return root.host.text(root.plugin.canReinstall ? "plugin.notInstalled" : "plugin.noReinstallSource")
             if (root.isFullBar) return root.host.text(root.isActiveBar ? "bar.active" : "bar.inactive")
-            if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.enabled" : "plugin.disabled")
+            if (!root.plugin.isBarWidget) return root.host.text(root.plugin.enabled ? "plugin.noBarIcon" : "plugin.disabled")
             if (!root.plugin.enabled) return "Disabled · not on the bar"
+            if (root.barHidden) return root.host.text("plugin.barHidden")
             if (root.plugin.instances.length > 1) return "Enabled · " + root.plugin.instances.length + " positions"
             var p = root.plugin.instances[0]
-            return p ? "Position: " + p.section.charAt(0).toUpperCase() + p.section.slice(1) + " · slot " + (p.index + 1) : "Enabled · not on the bar"
+            return p ? "Position: " + p.section.charAt(0).toUpperCase() + p.section.slice(1) + " · slot " + (p.index + 1) : root.host.text("plugin.noBarSlot")
           }
           objectName: "pluginPositionStatus"
           textFormat: Text.PlainText
@@ -158,6 +172,16 @@ Item {
         anchors.verticalCenter: parent.verticalCenter
         spacing: Style.space(3)
         HoverHandler { id: actionHover }
+        Ui.PanelActionButton {
+          objectName: "pluginFavoriteButton"
+          iconText: root.favorite ? "󰓎" : "󰓒"
+          tooltipText: root.host.text(root.favorite ? "plugin.unfavorite" : "plugin.favorite")
+          fontFamily: root.host.themeFont
+          foreground: root.favorite ? Commons.Color.accent : root.ink
+          focusable: true
+          enabled: root.available || root.favoritePending
+          onClicked: if (root.available) root.host.invoke(root.favorite ? "unfavorite" : "favorite", root.plugin.id)
+        }
         UpdateIndicator {
           visible: !!root.plugin.update && root.plugin.update.kind !== "omarchy" && ["available", "rewritten", "diverged"].indexOf(root.plugin.update.status) !== -1
           plugin: root.plugin
@@ -165,9 +189,25 @@ Item {
           enabled: root.available && (!root.plugin.operation || root.plugin.operation.status !== "working")
           onClicked: root.host.updatePlugin(root.plugin)
         }
-        Ui.PanelActionButton {
+        Ui.Button {
           objectName: "pluginOpenButton"
-          visible: !!root.plugin.canOpen
+          visible: root.opensWithoutBar
+          text: root.host.text("plugin.openAction")
+          tooltipText: root.host.text("plugin.open")
+          height: openIconButton.implicitHeight
+          horizontalPadding: Style.space(5)
+          verticalPadding: 0
+          fontSize: Style.font.caption
+          fontFamily: root.host.themeFont
+          foreground: root.ink
+          focusable: true
+          enabled: root.available && root.plugin.enabled
+          onClicked: root.host.invoke("open", root.plugin.id)
+        }
+        Ui.PanelActionButton {
+          id: openIconButton
+          objectName: "pluginOpenIconButton"
+          visible: !!root.plugin.canOpen && !root.opensWithoutBar
           iconText: "󰏋"
           tooltipText: root.host.text("plugin.open")
           fontFamily: root.host.themeFont
@@ -178,6 +218,7 @@ Item {
         }
         Ui.PanelActionButton {
           objectName: "pluginEnableButton"
+          visible: !root.notInstalled
           iconText: (root.isFullBar ? root.isActiveBar : root.plugin.enabled) ? "󰏤" : "󰐊"
           tooltipText: {
             if (root.isActiveBar && root.plugin.isDefaultBar) return root.host.text("bar.chooseReplacement")
@@ -202,6 +243,17 @@ Item {
             var action = root.isFullBar ? (root.isActiveBar ? "reset-bar" : "use-bar") : (root.plugin.enabled ? "disable" : "enable")
             root.host.invoke(action, root.plugin.id)
           }
+        }
+        Ui.PanelActionButton {
+          objectName: "pluginReinstallButton"
+          visible: root.notInstalled
+          iconText: "󰇚"
+          tooltipText: root.host.text("plugin.reinstall")
+          fontFamily: root.host.themeFont
+          foreground: root.ink
+          focusable: true
+          enabled: root.available && root.plugin.canReinstall === true
+          onClicked: root.host.invoke("reinstall", root.plugin.id)
         }
         Ui.PanelActionButton {
           iconText: "󰋽"
@@ -256,6 +308,42 @@ Item {
               enabled: root.available
               onClicked: root.host.invoke("move", root.plugin.id, modelData, location.modelData.section, location.modelData.index)
             }
+          }
+        }
+      }
+      Repeater {
+        model: ["about", "author-github", "author-x"]
+        delegate: Row {
+          id: linkRow
+          required property string modelData
+          visible: !root.confirming
+          spacing: Style.space(4)
+          height: Math.max(visit.height, copy.height)
+          Ui.Button {
+            id: visit
+            objectName: "pluginLink_" + linkRow.modelData
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.host.text("plugin.link." + linkRow.modelData)
+            horizontalPadding: Style.space(4)
+            verticalPadding: Style.space(2)
+            fontFamily: root.host.themeFont
+            foreground: root.ink
+            focusable: true
+            enabled: root.available
+            onClicked: root.host.invoke(linkRow.modelData, root.plugin.id)
+          }
+          Ui.PanelActionButton {
+            id: copy
+            objectName: "pluginCopyLink_" + linkRow.modelData
+            anchors.verticalCenter: parent.verticalCenter
+            iconText: "󰆏"
+            tooltipText: root.host.text("plugin.copy." + linkRow.modelData)
+            Accessible.name: tooltipText
+            fontFamily: root.host.themeFont
+            foreground: root.ink
+            focusable: true
+            enabled: root.available
+            onClicked: root.host.invoke("copy-" + linkRow.modelData, root.plugin.id)
           }
         }
       }

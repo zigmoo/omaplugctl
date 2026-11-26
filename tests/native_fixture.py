@@ -40,6 +40,12 @@ elif name == 'omarchy-plugin-list' or (name == 'omarchy-shell' and args == ['she
         del state['pendingBar']
     elif pending:
         pending['reads'] -= 1
+    pending_install = state.get('pendingInstall')
+    if pending_install and pending_install['reads'] == 0:
+        state['plugins'].append(pending_install['plugin'])
+        del state['pendingInstall']
+    elif pending_install:
+        pending_install['reads'] -= 1
     emit(state['plugins'])
 elif name == 'omarchy-shell' and args[:2] == ['shell', 'moveBarWidget']:
     pid, target = args[2], json.loads(args[3])
@@ -80,8 +86,13 @@ elif name == 'omarchy' and args[:2] == ['bar', 'set']:
                 if isinstance(entry, dict) and entry['id'] == args[2]:
                     entry[args[3]] = json.loads(args[4]) if '--json' in args else args[4]
 elif name == 'omarchy' and args[:2] == ['plugin', 'add']:
+    state['installAttempts'] = state.get('installAttempts', 0) + 1
     if not state.get('ignoreWrites'):
-        state['plugins'].append(dict(id='example.music', name='Music', kinds=['bar-widget'], enabled=False, firstParty=False))
+        plugin = dict(id='example.music', name='Music', kinds=['bar-widget'], enabled=False, firstParty=False)
+        directory = root / '.config/omarchy/plugins' / plugin['id']
+        directory.mkdir()
+        (directory / 'manifest.json').write_text(json.dumps(plugin))
+        state['pendingInstall'] = {'plugin': plugin, 'reads': state.get('installDiscoveryDelay', 0)}
 elif name == 'omarchy' and args[:2] == ['plugin', 'enable']:
     if not state.get('ignoreWrites'):
         for plugin in state['plugins']:
@@ -89,9 +100,25 @@ elif name == 'omarchy' and args[:2] == ['plugin', 'enable']:
                 plugin['enabled'] = True
 elif name == 'omarchy-shell' and args == ['shell', 'rescanPlugins']:
     print('ok')
+elif name == 'omarchy-shell' and args == ['shell', 'debugBarGeometry']:
+    emit(state.get('barGeometry', []))
 elif name == 'omarchy-shell' and args[:2] == ['shell', 'summon']:
     state.setdefault('summons', []).append(args[2:])
     print('unavailable' if state.get('summonError') else 'ok')
+elif name == 'xdg-open':
+    state.setdefault('openedUrls', []).append(args)
+elif name == 'wl-copy':
+    if args[:-1] != ['--type', 'text/plain;charset=utf-8', '--']:
+        raise SystemExit('Unexpected clipboard arguments')
+    state.setdefault('copiedUrls', []).append(args[-1])
+elif name == 'curl':
+    prefix = 'https://api.github.com'
+    if not args[-1].startswith(prefix + '/'):
+        raise SystemExit(22)
+    document = state.get('githubApi', {}).get(args[-1].removeprefix(prefix))
+    if document is None:
+        raise SystemExit(22)
+    emit(document)
 else:
     raise SystemExit('Unsupported fixture call: ' + repr((name, args)))
 

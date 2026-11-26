@@ -83,6 +83,70 @@ class PhpRepositoryTests(unittest.TestCase):
         self.command('git', '-C', str(self.installed), 'remote', 'set-url', 'origin', str(self.base / 'unavailable'))
         self.assertEqual(self.check()['status'], 'error')
 
+    def local_edit_review(self):
+        source = PHP_UPDATES.source(self.plugin, self.metadata)
+        return PHP_UPDATES.review_edits(source)['token']
+
+    def test_stash_update_keeps_index_worktree_and_untracked_edits(self):
+        remote = self.advance_remote()
+        widget = self.installed / 'Widget.qml'
+        widget.write_text('staged edit')
+        self.command('git', '-C', str(self.installed), 'add', 'Widget.qml')
+        widget.write_text('unstaged edit')
+        (self.installed / 'untracked.txt').write_text('private note')
+        (self.installed / '.git/info/exclude').write_text('ignored.txt\n')
+        (self.installed / 'ignored.txt').write_text('keep')
+        result = PHP_UPDATES.apply_update(self.plugin, self.metadata, True, 'stash', self.local_edit_review())
+        self.assertTrue(result['changed'])
+        self.assertEqual(result['stash'], PHP_UPDATES.git(self.installed, 'rev-parse', 'refs/stash'))
+        self.assertEqual(PHP_UPDATES.git(self.installed, 'show', 'refs/stash:Widget.qml'), 'unstaged edit')
+        self.assertEqual(PHP_UPDATES.git(self.installed, 'show', 'refs/stash^2:Widget.qml'), 'staged edit')
+        self.assertEqual(PHP_UPDATES.git(self.installed, 'show', 'refs/stash^3:untracked.txt'), 'private note')
+        self.assertFalse((self.installed / 'untracked.txt').exists())
+        self.assertEqual((self.installed / 'ignored.txt').read_text(), 'keep')
+
+    def test_discard_updates_only_after_exact_review(self):
+        self.advance_remote()
+        widget = self.installed / 'Widget.qml'
+        widget.write_text('old local edit')
+        reviewed = self.local_edit_review()
+        widget.write_text('new local edit')
+        with self.assertRaisesRegex(RuntimeError, 'changed after review'):
+            PHP_UPDATES.apply_update(self.plugin, self.metadata, True, 'discard', reviewed)
+        self.assertEqual(widget.read_text(), 'new local edit')
+        (self.installed / '.git/info/exclude').write_text('ignore[.]txt\n')
+        (self.installed / 'ignore.txt').write_text('keep ignored')
+        (self.installed / 'literal[1].txt').write_text('discard untracked')
+        result = PHP_UPDATES.apply_update(self.plugin, self.metadata, True, 'discard', self.local_edit_review())
+        self.assertTrue(result['changed'])
+        self.assertEqual(result['stash'], '')
+        self.assertFalse((self.installed / 'literal[1].txt').exists())
+        self.assertEqual((self.installed / 'ignore.txt').read_text(), 'keep ignored')
+        self.assertEqual(PHP_UPDATES.git(self.installed, 'stash', 'list'), '')
+
+    def test_scan_failure_preserves_reviewed_edits(self):
+        self.advance_remote()
+        widget = self.installed / 'Widget.qml'
+        widget.write_text('local edit')
+        before = PHP_UPDATES.git(self.installed, 'rev-parse', 'HEAD')
+        with patch.dict(os.environ, PHP_SCANNER_CODE='2'), self.assertRaises(RuntimeError):
+            PHP_UPDATES.apply_update(self.plugin, self.metadata, True, 'discard', self.local_edit_review())
+        self.assertEqual(widget.read_text(), 'local edit')
+        self.assertEqual(PHP_UPDATES.git(self.installed, 'rev-parse', 'HEAD'), before)
+
+    def test_ignored_collision_preserves_reviewed_edits(self):
+        (self.writer / 'ignored.txt').write_text('upstream')
+        self.commit(self.writer, 'New file')
+        self.command('git', '-C', str(self.writer), 'push', 'origin', 'master')
+        widget = self.installed / 'Widget.qml'
+        widget.write_text('local edit')
+        (self.installed / '.git/info/exclude').write_text('ignored.txt\n')
+        (self.installed / 'ignored.txt').write_text('ignored local file')
+        with self.assertRaisesRegex(RuntimeError, 'An ignored file conflicts'):
+            PHP_UPDATES.apply_update(self.plugin, self.metadata, False, 'discard', self.local_edit_review())
+        self.assertEqual(widget.read_text(), 'local edit')
+        self.assertEqual((self.installed / 'ignored.txt').read_text(), 'ignored local file')
+
     def test_inventory_git_cache_is_scoped_to_one_snapshot(self):
         import shlex
         calls = self.base / 'git-calls.txt'
@@ -226,13 +290,13 @@ class PhpNativeStateTests(unittest.TestCase):
         self.base = pathlib.Path(self.temporary.name)
         self.bin = self.base / 'bin'; self.bin.mkdir()
         commands = ['omarchy', 'omarchy-shell', 'omarchy-plugin-catalog', 'omarchy-plugin-list',
-                    'omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin-remove']
+                    'omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin-remove', 'xdg-open', 'wl-copy', 'curl']
         import shlex
         for name in commands:
             target = self.bin / name
             target.write_text('#!/bin/bash\nexec /usr/bin/python3 ' + shlex.quote(str(ROOT / 'tests/native_fixture.py')) + ' ' + name + ' "$@"\n')
             target.chmod(0o755)
-        for pid in ['moo.omaplugctl', 'moo.workspaces', 'example.radio', 'example.music']:
+        for pid in ['moo.omaplugctl', 'moo.workspaces', 'example.radio']:
             path = self.base / '.config/omarchy/plugins' / pid; path.mkdir(parents=True)
             metadata = dict(id=pid, name=pid, author='Fixture Author', kinds=['bar-widget'], entryPoints={})
             if pid == 'moo.workspaces':
@@ -268,6 +332,145 @@ class PhpNativeStateTests(unittest.TestCase):
         self.assertEqual(self.invoke('sort', 'name')['sortOrder'], 'name')
         self.assertTrue(self.invoke('set-scan', 'true')['scanBeforeUpdate'])
         self.assertEqual(self.invoke('position', '--edge', 'left')['barPosition'], 'left')
+
+    def test_bar_visibility_requires_live_slots_and_checks_every_copy(self):
+        state = json.loads(self.native_path.read_text())
+        state['barGeometry'] = [
+            {'id': 'example.radio', 'visible': False, 'itemVisible': False},
+            {'id': 'moo.omaplugctl', 'visible': False, 'itemVisible': True},
+            {'id': 'moo.omaplugctl', 'visible': True, 'itemVisible': True},
+            {'id': 'example.unknown', 'visible': False},
+        ]
+        self.native_path.write_text(json.dumps(state))
+        self.assertEqual(self.invoke('list')['hiddenBarWidgets'], {'example.radio': True})
+        self.assertEqual(self.invoke('update-status')['hiddenBarWidgets'], {'example.radio': True})
+
+    def test_installed_links_use_source_and_attributed_profiles(self):
+        directory = self.base / '.config/omarchy/plugins/example.radio'
+        manifest_path = directory / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest.update(repository={'url': 'git@gitlab.com:fixture/radio.git'},
+                        homepage='https://radio.example.com',
+                        author={'name': 'Fixture Author', 'github': 'fixture-author'})
+        manifest_path.write_text(json.dumps(manifest))
+        (directory / 'README.md').write_text(
+            '# Radio\n[Project](https://x.com/radio_project)\n\n'
+            '## Author\n[Post](https://x.com/wrong/status/1)\n'
+            '[Author](https://twitter.com/fixture_author)\n')
+        for action in ('about', 'author-github', 'author-x'):
+            self.assertTrue(self.invoke(action, 'example.radio')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['openedUrls'], [
+            ['https://gitlab.com/fixture/radio'], ['https://github.com/fixture-author'],
+            ['https://x.com/fixture_author']])
+        for action in ('copy-about', 'copy-author-github', 'copy-author-x'):
+            self.assertEqual(self.invoke(action, 'example.radio')['message'], 'Link copied.')
+        state = json.loads(self.native_path.read_text())
+        self.assertEqual(state['copiedUrls'], [url[0] for url in state['openedUrls']])
+        self.assertEqual(len(state['openedUrls']), 3)
+        self.assertFalse(self.invoke('author-x', 'example.unknown')['ok'])
+
+    def test_author_without_attribution_does_not_open_a_profile(self):
+        directory = self.base / '.config/omarchy/plugins/example.radio'
+        manifest_path = directory / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest['authorX'] = 'https://x.com.example.com/impersonator'
+        manifest_path.write_text(json.dumps(manifest))
+        (directory / 'README.md').write_text('# Radio\n[Project](https://x.com/radio_project)\n')
+        result = self.invoke('author-x', 'example.radio')
+        self.assertFalse(result['ok'])
+        self.assertIn('No author X profile found', result['message'])
+        self.assertNotIn('openedUrls', json.loads(self.native_path.read_text()))
+
+    def test_github_profile_can_use_the_attributed_authors_noreply_commit(self):
+        directory = self.base / '.config/omarchy/plugins/example.radio'
+        subprocess.run(['git', 'init', '-q', directory], check=True)
+        subprocess.run(['git', '-C', directory, 'add', 'manifest.json'], check=True)
+        subprocess.run(['git', '-C', directory, '-c', 'user.name=Fixture Author', '-c',
+                        'user.email=123+fixture-author@users.noreply.github.com',
+                        'commit', '-qm', 'Add plugin'], check=True)
+        self.assertTrue(self.invoke('author-github', 'example.radio')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['openedUrls'], [['https://github.com/fixture-author']])
+
+    def test_author_lookup_uses_linked_commit_account_and_its_public_x_profile(self):
+        directory = self.base / '.config/omarchy/plugins/example.radio'
+        subprocess.run(['git', 'init', '-q', directory], check=True)
+        subprocess.run(['git', '-C', directory, 'remote', 'add', 'origin', 'https://github.com/other/radio'], check=True)
+        subprocess.run(['git', '-C', directory, 'add', 'manifest.json'], check=True)
+        subprocess.run(['git', '-C', directory, '-c', 'user.name=Fixture Author', '-c', 'user.email=fixture@example.invalid',
+                        'commit', '-qm', 'Add plugin'], check=True)
+        commit = subprocess.check_output(['git', '-C', directory, 'rev-parse', 'HEAD'], text=True).strip()
+        state = json.loads(self.native_path.read_text())
+        state['githubApi'] = {
+            f'/repos/other/radio/commits/{commit}': {'sha': commit, 'author': {'login': 'fixture-author', 'type': 'User'}},
+            '/users/fixture-author': {'login': 'fixture-author', 'type': 'User', 'twitter_username': 'other_handle'},
+        }
+        self.native_path.write_text(json.dumps(state))
+        self.assertTrue(self.invoke('author-github', 'example.radio')['ok'])
+        self.assertTrue(self.invoke('author-x', 'example.radio')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['openedUrls'], [
+            ['https://github.com/fixture-author'], ['https://x.com/other_handle']])
+        cache = self.base / 'state/omarchy/omaplugctl/plugin_data.jsonl'
+        self.assertTrue(cache.is_file())
+        self.assertIn('https://x.com/other_handle', cache.read_text())
+        state = json.loads(self.native_path.read_text())
+        state['githubApi'] = {}
+        self.native_path.write_text(json.dumps(state))
+        self.assertTrue(self.invoke('author-github', 'example.radio')['ok'])
+        self.assertTrue(self.invoke('author-x', 'example.radio')['ok'])
+        manifest_path = directory / 'manifest.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest['authorX'] = 'new_handle'
+        manifest_path.write_text(json.dumps(manifest))
+        self.assertTrue(self.invoke('author-x', 'example.radio')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['openedUrls'][-1], ['https://x.com/new_handle'])
+
+    def test_repository_owner_with_unrelated_name_is_not_product_author(self):
+        directory = self.base / '.config/omarchy/plugins/example.radio'
+        path = directory / 'manifest.json'
+        manifest = json.loads(path.read_text())
+        manifest['repository'] = 'https://github.com/elsewhere/radio'
+        path.write_text(json.dumps(manifest))
+        state = json.loads(self.native_path.read_text())
+        state['githubApi'] = {'/users/elsewhere': {'type': 'User', 'login': 'elsewhere', 'name': 'Unrelated Author'}}
+        self.native_path.write_text(json.dumps(state))
+        self.assertFalse(self.invoke('author-github', 'example.radio')['ok'])
+        state = json.loads(self.native_path.read_text())
+        state['githubApi']['/users/elsewhere']['name'] = 'Fixture Author'
+        self.native_path.write_text(json.dumps(state))
+        self.assertTrue(self.invoke('author-github', 'example.radio')['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['openedUrls'], [['https://github.com/elsewhere']])
+
+    def test_favorite_persists_through_disable_and_uninstall(self):
+        plugin_id = 'example.radio'
+        path = self.base / '.config/omarchy/plugins' / plugin_id / 'manifest.json'
+        manifest = json.loads(path.read_text())
+        manifest.update(repository='https://github.com/fixture/radio.git', authorX='@fixture_author')
+        path.write_text(json.dumps(manifest))
+        self.assertTrue(self.invoke('favorite', plugin_id)['ok'])
+        disabled = next(p for p in self.invoke('disable', plugin_id)['plugins'] if p['id'] == plugin_id)
+        self.assertTrue(disabled['favorite'])
+        self.assertFalse(disabled['enabled'])
+        self.assertTrue(self.invoke('remove', plugin_id, '--confirmed')['ok'])
+        inventory = self.invoke('list')
+        self.assertNotIn(plugin_id, [p['id'] for p in inventory['plugins']])
+        saved, = inventory['uninstalledFavorites']
+        self.assertEqual(saved['id'], plugin_id)
+        self.assertFalse(saved['installed'])
+        self.assertTrue(saved['canReinstall'])
+        self.assertEqual(saved['repository'], 'https://github.com/fixture/radio')
+        self.assertTrue(self.invoke('author-x', plugin_id)['ok'])
+        self.assertTrue(self.invoke('copy-author-x', plugin_id)['ok'])
+        self.assertEqual(json.loads(self.native_path.read_text())['copiedUrls'], ['https://x.com/fixture_author'])
+        self.assertFalse(self.invoke('enable', plugin_id)['ok'])
+        self.assertEqual(self.invoke('unfavorite', plugin_id)['uninstalledFavorites'], [])
+
+    def test_favorite_with_no_repository_is_kept_but_cannot_reinstall(self):
+        plugin_id = 'example.radio'
+        self.assertTrue(self.invoke('favorite', plugin_id)['ok'])
+        self.assertTrue(self.invoke('remove', plugin_id, '--confirmed')['ok'])
+        saved, = self.invoke('list')['uninstalledFavorites']
+        self.assertFalse(saved['canReinstall'])
+        self.assertIn('No installable repository', self.invoke('reinstall', plugin_id)['message'])
 
     def test_legacy_bar_position_reads_saved_state_and_confirms_writes(self):
         state = json.loads(self.native_path.read_text()); state['legacyPosition'] = True
@@ -326,10 +529,19 @@ class PhpNativeStateTests(unittest.TestCase):
         entries = php('Marketplace\\normalize', payload)['result']
         php('save_json', {'schema': 1, 'entries': entries, 'fetchedAt': datetime.datetime.now(datetime.timezone.utc).isoformat()},
             str(self.base / 'state/omarchy/omaplugctl/marketplace.json'))
+        state = json.loads(self.native_path.read_text())
+        state['installDiscoveryDelay'] = 3
+        self.native_path.write_text(json.dumps(state))
         result = self.invoke('catalog-install', 'example.music')
-        self.assertTrue(result['ok']); self.assertTrue(result['entries'][0]['installed']); self.assertFalse(result['entries'][0]['enabled'])
+        self.assertTrue(result['ok'], result)
+        self.assertTrue(result['entries'][0]['installed'])
+        self.assertFalse(result['entries'][0]['enabled'])
+        self.assertIn('Click Enable', result['message'])
         self.assertTrue(self.invoke('catalog-enable', 'example.music')['entries'][0]['enabled'])
-        self.assertFalse(self.invoke('catalog-install', 'example.music')['ok'])
+        result = self.invoke('catalog-install', 'example.music')
+        self.assertTrue(result['ok'])
+        self.assertTrue(result['entries'][0]['enabled'])
+        self.assertEqual(json.loads(self.native_path.read_text())['installAttempts'], 1)
 
     def add_plugin(self, pid, kinds, enabled=True, can_disable=True, active=False):
         directory = self.base / '.config/omarchy/plugins' / pid
@@ -352,6 +564,31 @@ class PhpNativeStateTests(unittest.TestCase):
             self.assertEqual(row['instances'], [])
         self.assertTrue(rows['example.radio']['isBarWidget'])
         self.assertFalse(rows['example.radio']['canOpen'])
+
+    def test_catalog_identifies_panel_rows_using_installed_kinds(self):
+        self.add_plugin('example.panel', ['panel'])
+        self.add_plugin('example.combo', ['panel', 'bar-widget'])
+        payload = {'plugins': [dict(id=pid, name=pid, kind='Service')
+                                for pid in ['example.panel', 'example.combo']]}
+        entries = php('Marketplace\\normalize', payload)['result']
+        php('save_json', {'schema': 1, 'entries': entries, 'fetchedAt': datetime.datetime.now(datetime.timezone.utc).isoformat()},
+            str(self.base / 'state/omarchy/omaplugctl/marketplace.json'))
+        rows = {p['id']: p for p in self.invoke('catalog')['entries']}
+        self.assertTrue(rows['example.panel']['opensWithoutBar'])
+        self.assertFalse(rows['example.combo']['opensWithoutBar'])
+
+    def test_disabled_plugin_inventory_includes_author_and_search_keywords(self):
+        self.add_plugin('example.lookup', ['service'], enabled=False)
+        path = self.base / '.config/omarchy/plugins/example.lookup/manifest.json'
+        manifest = json.loads(path.read_text())
+        manifest.pop('author')
+        manifest.update(authors=[{'name': 'Jane Doe'}, 'Riley'],
+                        keywords=['  desktop  alerts  ', 123, ''], tags=['desktop alerts', 'focus'])
+        path.write_text(json.dumps(manifest))
+        plugin = next(row for row in self.invoke('list')['plugins'] if row['id'] == 'example.lookup')
+        self.assertFalse(plugin['enabled'])
+        self.assertEqual(plugin['author'], 'Jane Doe, Riley')
+        self.assertEqual(plugin['keywords'], ['desktop alerts', 'focus'])
 
     def test_overlay_enable_open_disable_and_remove(self):
         self.add_plugin('example.overlay', ['overlay'], enabled=False)

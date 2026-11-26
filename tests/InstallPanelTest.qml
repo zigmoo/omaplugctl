@@ -199,6 +199,66 @@ ShellRoot {
         mouseClick(button)
         tryCompare(panel, "message", "Opened fixture source.", 5000)
       }
+      function test_11_marketplace_setup_uses_source_evaluation() {
+        const original = panel.entries
+        try {
+          const note = "Run the documented setup before enabling."
+          panel.entries = [Object.assign({}, original[0], {id: "example.setup", name: "Setup Plugin",
+            searchText: "setup plugin", installed: false, enabled: false, installable: false, installNote: note})]
+          typeText("setup")
+          tryVerify(function() { return !!list().itemAtIndex(0) })
+          let row = list().itemAtIndex(0)
+          let button = findChild(row, "catalogInstallButton")
+          compare(button.text, "Evaluate source")
+          compare(findChild(row, "installSetupNote").text, note)
+          mouseClick(button)
+          verify(panel.busy)
+          tryVerify(function() { return !panel.busy && panel.results.length === 1 }, 5000)
+          compare(panel.results[0].id, "example.setup")
+          verify(!panel.results[0].installed)
+          tryVerify(function() { return !!list().itemAtIndex(0) })
+          row = list().itemAtIndex(0)
+          button = findChild(row, "catalogInstallButton")
+          compare(button.text, "Install")
+          verify(findChild(row, "installSetupNote").visible)
+          mouseClick(button)
+          tryVerify(function() { return !panel.busy && panel.results[0].installed }, 5000)
+          verify(!panel.results[0].enabled)
+          compare(panel.results[0].installNote, note)
+          tryVerify(function() {
+            return list().itemAtIndex(0) && findChild(list().itemAtIndex(0), "catalogInstallButton").text === "Enable"
+          })
+          mouseClick(findChild(list().itemAtIndex(0), "catalogInstallButton"))
+          tryVerify(function() {
+            return !panel.busy && list().itemAtIndex(0) && findChild(list().itemAtIndex(0), "catalogInstallButton").text === "Open"
+          }, 5000)
+          mouseClick(findChild(list().itemAtIndex(0), "catalogInstallButton"))
+          tryCompare(panel, "message", "Open requested.", 5000)
+        } finally { panel.entries = original }
+      }
+      function test_12_failed_install_shows_retry_on_the_result() {
+        const original = panel.entries
+        try {
+          panel.entries = [Object.assign({}, original[0], {id: "example.retry", name: "Retry Fixture",
+            searchText: "retry fixture", installed: false, enabled: false})]
+          typeText("retry")
+          tryVerify(function() { return !!list().itemAtIndex(0) })
+          let row = list().itemAtIndex(0)
+          let button = findChild(row, "catalogInstallButton")
+          mouseClick(button)
+          tryCompare(panel, "failed", true, 5000)
+          tryCompare(button, "text", "Retry")
+          compare(findChild(row, "installRowError").text, "Fixture is on disk. Click Retry to check again.")
+          verify(findChild(row, "installRowError").visible)
+          compare(findChild(panel, "installStatusText").text, testHost.text("install.footer"))
+          mouseClick(button)
+          tryVerify(function() { return !panel.busy && panel.results[0].installed }, 5000)
+          tryVerify(function() {
+            return list().itemAtIndex(0) && findChild(list().itemAtIndex(0), "catalogInstallButton").text === "Enable"
+          })
+          verify(!findChild(list().itemAtIndex(0), "installRowError").visible)
+        } finally { panel.entries = original }
+      }
       function cleanupTestCase() {
         console.log("INSTALL UI FAIL COUNT", qtest_results.failCount)
         Qt.callLater(function() { Qt.quit() })

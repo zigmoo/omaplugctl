@@ -93,38 +93,135 @@ function compare_source(array $info,string $remote,array $metadata): array {
     $details=in_array($status,['available','rewritten','diverged'],true)?update_details($info,$remote,$metadata):[];
     return [...$info,...$details,'status'=>$status,'remoteHead'=>$remote,'checkedAt'=>now(),'canUpdate'=>in_array($status,['available','rewritten'],true)&&!$info['dirty']&&$info['tracking']&&$info['kind']==='plugin'];
 }
-function unchanged(?array $current,array $before): bool { return $current!==null&&$current['identity']===$before['identity']&&$current['head']===$before['head']&&!$current['dirty']; }
-function apply_update(array $plugin,array $metadata,bool $scan=true): array {
+function review_edits(array $info): array {
+    $root=$info['root'];
+    $gitDir=git($root,['rev-parse','--absolute-git-dir']);
+    foreach (['MERGE_HEAD','CHERRY_PICK_HEAD','REVERT_HEAD','rebase-apply','rebase-merge','sequencer','index.lock'] as $state) {
+        if (file_exists($gitDir.'/'.$state)) throw new \RuntimeException('Finish the current Git operation before handling local changes.');
+    }
+    $status=git($root,['status','--porcelain=v1','-z','--no-renames','--untracked-files=all','--ignore-submodules=none'],15,null,true);
+    $index=git($root,['diff','--cached','--binary','--no-ext-diff','--no-textconv','--no-renames',$info['head'],'--'],20,null,true);
+    $hash=hash_init('sha256');
+    hash_update($hash,$info['identity']."\0".$info['head']."\0".$status."\0".$index);
+    $tracked=[];$untracked=[];
+    foreach (explode("\0",$status) as $row) {
+        if ($row==='') continue;
+        $code=substr($row,0,2);$path=substr($row,3);
+        if ($path==='' || $path[0]==='/' || in_array('..',explode('/',$path),true)
+            || in_array($code,['DD','AU','UD','UA','DU','AA','UU'],true)) {
+            throw new \RuntimeException('Resolve the current Git conflicts before handling local changes.');
+        }
+        $file=$root.'/'.$path;
+        clearstatcache(true,$file);
+        if (is_link($file)) {
+            $contents=readlink($file);
+            if ($contents===false) throw new \RuntimeException('Could not read a changed symlink.');
+            hash_update($hash,"link\0".$contents."\0");
+        } elseif (is_file($file)) {
+            $contents=hash_file('sha256',$file);
+            if ($contents===false) throw new \RuntimeException('Could not read a changed file.');
+            hash_update($hash,"file\0".(fileperms($file)&0777)."\0".$contents);
+        } elseif (file_exists($file) || str_ends_with($path,'/')) {
+            throw new \RuntimeException('Handle submodules, nested repositories, or special files manually before updating.');
+        } else {
+            hash_update($hash,"absent\0");
+        }
+        if ($code==='??') $untracked[]=$path;
+        else $tracked[]=$path;
+    }
+    return ['token'=>hash_final($hash),'tracked'=>$tracked,'untracked'=>$untracked];
+}
+
+function unchanged(?array $current,array $before,?array $review=null): bool {
+    if ($current===null || $current['identity']!==$before['identity'] || $current['head']!==$before['head']) return false;
+    return $review===null ? !$current['dirty']
+        : $current['dirty'] && hash_equals($review['token'],review_edits($current)['token']);
+}
+
+function clear_reviewed_edits(array $before,array $review,string $action): string {
+    $root=$before['root'];
+    if ($action==='discard') {
+        if ($review['tracked']) git($root,['--literal-pathspecs','restore','--source='.$before['head'],'--staged','--worktree','--',...$review['tracked']],30);
+        if ($review['untracked']) git($root,['--literal-pathspecs','clean','-f','--',...$review['untracked']],30);
+        return '';
+    }
+    try { $previous=git($root,['rev-parse','--verify','refs/stash']); }
+    catch (\RuntimeException) { $previous=''; }
+    git($root,['-c','core.hooksPath=/dev/null','stash','push','--include-untracked','--message','OmaPlugCtl before update '.now()],30);
+    $stash=git($root,['rev-parse','--verify','refs/stash']);
+    if ($stash===$previous) throw new \RuntimeException('Could not confirm a new Git stash.');
+    return $stash;
+}
+
+function check_ignored_collisions(array $before,string $remote): void {
+    $root=$before['root'];
+    $ignored=array_filter(explode("\0",git($root,['ls-files','--others','--ignored','--exclude-standard','-z'],15,null,true)));
+    if (!$ignored) return;
+    $incoming=array_filter(explode("\0",git($root,['diff','--no-renames','--diff-filter=AMT','--name-only','-z',$before['head'],$remote,'--'],15,null,true)));
+    $ignoredPaths=array_fill_keys($ignored,true);
+    $incomingPaths=array_fill_keys($incoming,true);
+    foreach ([[$ignored,$incomingPaths],[$incoming,$ignoredPaths]] as [$paths,$other]) {
+        foreach ($paths as $path) {
+            for ($part=$path;$part!=='.';$part=dirname($part)) {
+                if (isset($other[$part])) throw new \RuntimeException('An ignored file conflicts with the update. Local files were preserved.');
+            }
+        }
+    }
+}
+
+function apply_update(array $plugin,array $metadata,bool $scan=true,?string $editAction=null,?string $token=null): array {
     $initial=source($plugin,$metadata);
     if(!$initial||$initial['kind']!=='plugin')throw new \RuntimeException('This plugin is updated with Omarchy, not an independent plugin Git checkout.');
-    return locked(state_root().'/update-'.hash('sha256',$initial['root']).'.lock',function()use($initial,$plugin,$metadata,$scan){
+    return locked(state_root().'/update-'.hash('sha256',$initial['root']).'.lock',function()use($initial,$plugin,$metadata,$scan,$editAction,$token){
         $before=source($plugin,$metadata);
         if(!$before||$before['identity']!==$initial['identity'])throw new \RuntimeException('The running plugin source changed. Refresh before updating.');
-        if($before['dirty'])throw new \RuntimeException('Local changes block this update; your files were preserved.');
+        $review=null;
+        if ($editAction!==null) {
+            if (!in_array($editAction,['stash','discard'],true) || $token===null) throw new \InvalidArgumentException('Choose how to handle the reviewed local changes.');
+            $review=$before['dirty']?review_edits($before):null;
+            if ($review===null || !hash_equals($review['token'],$token)) {
+                throw new \RuntimeException('Local changes changed after review. Open the update again.');
+            }
+        } elseif ($before['dirty']) {
+            throw new \RuntimeException('Local changes block this update; your files were preserved.');
+        }
         if(!$before['tracking'])throw new \RuntimeException('Choose an attached branch tracking origin before updating this plugin.');
         $remote=fetch_source($before);
-        if(!unchanged(source($plugin,$metadata),$before))throw new \RuntimeException('The plugin checkout changed during the source check. No update applied.');
+        if(!unchanged(source($plugin,$metadata),$before,$review))throw new \RuntimeException('The plugin checkout changed during the source check. No update applied.');
         $status=compare_source($before,$remote,$metadata);$backup='';$scanResult=['status'=>'disabled'];
         if($status['status']==='diverged')throw new \RuntimeException('History diverged; installed commits are not all reproduced upstream. No files were changed.');
         if($status['status']==='ahead')throw new \RuntimeException('This checkout has local commits ahead of upstream. No files were changed.');
         if($scan&&in_array($status['status'],['available','rewritten'],true)) {
             save_operation($plugin['id'],['status'=>'working','message'=>'Scanning update with ClamAV…']);
             $scanResult=\OmaPlugCtl\Malware\scan_commit($before['root'],$remote);
-            if(!unchanged(source($plugin,$metadata),$before))throw new \RuntimeException('The plugin changed during malware scanning. No update applied.');
+            if(!unchanged(source($plugin,$metadata),$before,$review))throw new \RuntimeException('The plugin changed during malware scanning. No update applied.');
         }
-        if(!unchanged(source($plugin,$metadata),$before))throw new \RuntimeException('The plugin changed during history verification. No update applied.');
-        if($status['status']==='available')git($before['root'],['-c','core.hooksPath=/dev/null','merge','--ff-only','--no-edit','--no-overwrite-ignore',$remote],30);
-        elseif($status['status']==='rewritten') {
-            $backup='backup/omaplugctl/'.gmdate('Ymd\THis').bin2hex(random_bytes(4)).'Z-'.substr($before['head'],0,12);
-            git($before['root'],['branch','--no-track',$backup,$before['head']]);
-            if(git($before['root'],['rev-parse','refs/heads/'.$backup])!==$before['head'])throw new \RuntimeException('Could not verify the backup branch; update stopped.');
-            try{git($before['root'],['-c','core.hooksPath=/dev/null','checkout','--no-track','--no-overwrite-ignore','-B',$before['branch'],$remote],30);}
-            catch(\Throwable $error){throw new \RuntimeException('History reconciliation stopped; previous version is preserved at '.$backup.'.',0,$error);}
+        if ($review!==null && $status['status']!=='current') check_ignored_collisions($before,$remote);
+        if(!unchanged(source($plugin,$metadata),$before,$review))throw new \RuntimeException('The plugin changed during history verification. No update applied.');
+        if ($status['status']==='current' && $review!==null) {
+            return ['head'=>$before['head'],'changed'=>false,'backup'=>'','scan'=>$scanResult];
         }
-        $after=source($plugin,$metadata);
-        if(!$after||$after['head']!==$remote||$after['dirty']||$after['identity']!==$before['identity'])throw new \RuntimeException('Could not confirm the updated checkout. Refresh its status.');
-        $cache=load_cache();$cache[$plugin['id']]=[...compare_source($after,$remote,$metadata),'scan'=>$scanResult];save_cache($cache);
-        return ['head'=>$after['head'],'changed'=>$after['head']!==$before['head'],'backup'=>$backup,'scan'=>$scanResult];
+        $stash='';
+        if ($review!==null) $stash=clear_reviewed_edits($before,$review,$editAction);
+        try {
+            if(!unchanged(source($plugin,$metadata),$before))throw new \RuntimeException('Could not verify a clean checkout before updating.');
+            if($status['status']==='available')git($before['root'],['-c','core.hooksPath=/dev/null','merge','--ff-only','--no-edit','--no-overwrite-ignore',$remote],30);
+            elseif($status['status']==='rewritten') {
+                $backup='backup/omaplugctl/'.gmdate('Ymd\THis').bin2hex(random_bytes(4)).'Z-'.substr($before['head'],0,12);
+                git($before['root'],['branch','--no-track',$backup,$before['head']]);
+                if(git($before['root'],['rev-parse','refs/heads/'.$backup])!==$before['head'])throw new \RuntimeException('Could not verify the backup branch; update stopped.');
+                try{git($before['root'],['-c','core.hooksPath=/dev/null','checkout','--no-track','--no-overwrite-ignore','-B',$before['branch'],$remote],30);}
+                catch(\Throwable $error){throw new \RuntimeException('History reconciliation stopped; previous version is preserved at '.$backup.'.',0,$error);}
+            }
+            $after=source($plugin,$metadata);
+            if(!$after||$after['head']!==$remote||$after['dirty']||$after['identity']!==$before['identity'])throw new \RuntimeException('Could not confirm the updated checkout. Refresh its status.');
+            $cache=load_cache();$cache[$plugin['id']]=[...compare_source($after,$remote,$metadata),'scan'=>$scanResult];save_cache($cache);
+            return ['head'=>$after['head'],'changed'=>$after['head']!==$before['head'],'backup'=>$backup,'scan'=>$scanResult,'stash'=>$stash];
+        } catch (\Throwable $error) {
+            if ($stash!=='') throw new \RuntimeException($error->getMessage().' Local edits are in Git stash '.substr($stash,0,12).'.',0,$error);
+            if ($editAction==='discard') throw new \RuntimeException($error->getMessage().' The reviewed edits were discarded.',0,$error);
+            throw $error;
+        }
     });
 }
 /** Four concurrent Git fetches, once per source identity, without PHP modules. */

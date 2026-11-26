@@ -303,6 +303,18 @@ def plugin_details(metadata, history_cache=None):
     updated = local_update_date(pathlib.Path(path), manifest) if isinstance(path, str) and manifest else ''
     author = plugin_author(manifest)
     result = {'author': author, 'updatedDate': updated}
+    keywords = []
+    for field in ('keywords', 'tags'):
+        values = manifest.get(field)
+        if not isinstance(values, list):
+            continue
+        for value in values[:32]:
+            if isinstance(value, str):
+                keyword = ' '.join(value.split())[:80]
+                if keyword:
+                    keywords.append(keyword)
+    if keywords:
+        result['keywords'] = list(dict.fromkeys(keywords))
     provenance = manifest.get('omarchy') or {}
     provenance = provenance if isinstance(provenance, dict) else {}
     source_commit = provenance.get('clonedAtCommit', '')

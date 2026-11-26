@@ -18,14 +18,17 @@ function builtin_about_url(string $id): string {
     if(!$metadata)return $base;$manifest=$metadata['manifestPath'];$path=basename($manifest)==='manifest.json'?dirname($manifest):$manifest;
     return $base.'/'.(basename($manifest)==='manifest.json'?'tree':'blob').'/HEAD/'.relative_path($path,omarchy_root());
 }
-function readme_description(array $metadata): string {
+function plugin_readme(array $metadata): string {
     $directory=$metadata['sourceDir']??null;
     if(!is_string($directory)||$directory===''||(isset($metadata['manifestPath'])&&basename($metadata['manifestPath'])!=='manifest.json'))return '';
     $file=$directory.'/README.md';clearstatcache(true,$file);
     if(!is_file($file)||is_link($file)||filesize($file)>262144)return '';
     try{$body=raw_run(['dd','if='.$file,'iflag=nonblock,nofollow','bs=262145','count=1','status=none'],5,null,null,262145);}catch(\Throwable){return '';}
     if(strlen($body)>262144||preg_match('//u',$body)!==1)return '';
-    $body=preg_replace('/\A\xEF\xBB\xBF/','',$body);$fence=null;$sections=[];$collecting=false;$finished=false;$index=-1;
+    return preg_replace('/\A\xEF\xBB\xBF/','',$body);
+}
+function readme_description(array $metadata): string {
+    $body=plugin_readme($metadata);$fence=null;$sections=[];$collecting=false;$finished=false;$index=-1;
     foreach(preg_split('/\r\n|\r|\n/',$body)as$line) {
         $marker=preg_match('/^ {0,3}(`{3,}|~{3,})(.*)$/',$line,$m)?$m:null;
         if($fence!==null){if($marker&&$marker[1][0]===$fence[0]&&strlen($marker[1])>=strlen($fence)&&trim($marker[2])==='')$fence=null;continue;}
@@ -40,6 +43,189 @@ function readme_description(array $metadata): string {
         else $sections[$index][]=$text;
     }
     return count($sections)===1?clean_text(implode(' ',$sections[0]),262144):'';
+}
+function author_profile(mixed $value,string $platform,bool $allowHandle=false): string {
+    if (!is_string($value) || strlen($value)>2048) return '';
+    $value=trim($value);
+    $hosts=$platform==='github'?'github\.com':'(?:x|twitter)\.com';
+    if (preg_match('~\Ahttps://(?:www\.)?'.$hosts.'/([^/]+?)/?\z~iD',$value,$match)) {
+        $handle=$match[1];
+    } elseif ($allowHandle) {
+        $handle=ltrim($value,'@');
+    } else {
+        return '';
+    }
+    if ($platform==='github') {
+        return strlen($handle)<=39 && preg_match('/\A[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\z/D',$handle)
+            ? 'https://github.com/'.$handle : '';
+    }
+    return preg_match('/\A[A-Za-z0-9_]{1,15}\z/D',$handle)?'https://x.com/'.$handle:'';
+}
+
+function readme_author_profile(array $metadata,string $platform): string {
+    $authorSection=false;
+    $fence='';
+    foreach (preg_split('/\r\n|\r|\n/',plugin_readme($metadata)) as $line) {
+        if (preg_match('/^ {0,3}(\x60{3,}|~{3,})(.*)$/',$line,$marker)) {
+            if ($fence==='') $fence=$marker[1];
+            elseif ($fence[0]===$marker[1][0] && strlen($marker[1])>=strlen($fence) && trim($marker[2])==='') $fence='';
+            continue;
+        }
+        if ($fence!=='') continue;
+        if (preg_match('/^ {0,3}#{1,6}\s+(.+)$/',$line,$heading)) {
+            $authorSection=preg_match('/\A(?:authors?(?: links)?|maintainers?)\z/iD',trim($heading[1]," #\t"))===1;
+            continue;
+        }
+        if (!$authorSection && !preg_match('/^\s*[-*]?\s*\**(?:author|maintainer)\s*\**:/i',$line)) continue;
+        preg_match_all("~https://[^\s<>()\[\]\"']+~i",$line,$links);
+        foreach ($links[0] as $link) {
+            $profile=author_profile(rtrim($link,'.,;'),$platform);
+            if ($profile!=='') return $profile;
+        }
+    }
+    return '';
+}
+
+function declared_author_profile(array $manifest,string $platform): string {
+    $fields=$platform==='github'?['authorGithub']:['authorX','authorTwitter'];
+    foreach ($fields as $field) {
+        $profile=author_profile($manifest[$field]??null,$platform,true);
+        if ($profile!=='') return $profile;
+    }
+    $profile=author_profile($manifest['authorUrl']??null,$platform);
+    if ($profile!=='') return $profile;
+    $authors=$manifest['author']??$manifest['authors']??[];
+    if (!is_array($authors) || !array_is_list($authors)) $authors=[$authors];
+    $handles=$platform==='github'?['github']:['x','twitter'];
+    foreach ($authors as $author) {
+        if (!is_array($author)) continue;
+        foreach ($handles as $field) {
+            $profile=author_profile($author[$field]??null,$platform,true);
+            if ($profile!=='') return $profile;
+        }
+        foreach (['url','website'] as $field) {
+            $profile=author_profile($author[$field]??null,$platform);
+            if ($profile!=='') return $profile;
+        }
+    }
+    return '';
+}
+
+function author_commit_evidence(array $plugin,array $metadata): ?array {
+    $history=[];
+    $provenance=($plugin['authorSource']??'')==='upstream-first-commit'
+        ? builtin_metadata($plugin['clonedFrom']??'') : $metadata;
+    $commit=$plugin['authorCommit']??'';
+    if ($commit==='') {
+        $first=first_commit_author($provenance,$history);
+        if (fold($first['author']??'')!==fold($plugin['author']??'')) return null;
+        $commit=$first['authorCommit']??'';
+    }
+    $directory=$provenance['sourceDir']??'';
+    if ($directory==='' || !preg_match('/\A[0-9a-f]{40,64}\z/D',$commit)) return null;
+    return ['directory'=>$directory,'commit'=>$commit];
+}
+function author_github_from_commit(array $plugin,array $metadata): string {
+    $evidence=author_commit_evidence($plugin,$metadata);
+    if ($evidence===null) return '';
+    try {
+        $email=Updates\git($evidence['directory'],['show','-s','--format=%ae',$evidence['commit']],5);
+    } catch (\RuntimeException) {
+        return '';
+    }
+    return preg_match('/\A(?:[0-9]+\+)?([A-Za-z0-9-]+)@users\.noreply\.github\.com\z/iD',$email,$match)
+        ? author_profile($match[1],'github',true) : '';
+}
+
+function github_public_json(string $endpoint): array {
+    static $results=[];
+    if (isset($results[$endpoint])) return $results[$endpoint];
+    try {
+        $body=raw_run(['curl','--disable','--fail','--silent','--show-error','--proto','=https',
+            '--connect-timeout','3','--max-time','5','--max-filesize','2097152',
+            '--header','Accept: application/vnd.github+json','--user-agent','OmaPlugCtl',
+            'https://api.github.com/'.$endpoint],6,null,null,2097152);
+        $data=json_decode($body,true,64,JSON_THROW_ON_ERROR);
+        return $results[$endpoint]=is_array($data)?$data:[];
+    } catch (\RuntimeException|\JsonException) {
+        return $results[$endpoint]=[];
+    }
+}
+
+function github_profile_data(string $profile): array {
+    if ($profile==='') return [];
+    $login=basename($profile);
+    $account=github_public_json('users/'.$login);
+    return ($account['type']??'')==='User' && strcasecmp($account['login']??'',$login)===0 ? $account : [];
+}
+
+function github_profile_from_repository(array $plugin,array $metadata,string $repo): string {
+    $name=clean_text($plugin['author']??'',200);
+    if ($repo==='' || $name==='') return '';
+    $slug=substr($repo,strlen('https://github.com/'));
+    $evidence=author_commit_evidence($plugin,$metadata);
+    if ($evidence!==null) {
+        $commit=$evidence['commit'];
+        $attribution=github_public_json('repos/'.$slug.'/commits/'.$commit);
+        if (($attribution['sha']??'')===$commit && ($attribution['author']['type']??'')==='User') {
+            $profile=author_profile($attribution['author']['login']??null,'github',true);
+            if ($profile!=='') return $profile;
+        }
+    }
+    // Repository ownership alone is insufficient, especially for forks and
+    // organization repositories. Require the declared author to match.
+    if (!empty($plugin['firstParty']) || !empty($plugin['clonedFrom'])) return '';
+    $owner=explode('/',$slug,2)[0];
+    $profile=author_profile($owner,'github',true);
+    $account=github_profile_data($profile);
+    if (!$account) return '';
+    $publicName=clean_text($account['name']??'',200);
+    return fold(ltrim($name,'@'))===fold($owner) || ($publicName!=='' && fold($name)===fold($publicName))
+        ? $profile : '';
+}
+
+function author_data_signature(array $plugin,array $metadata,array $manifest): string {
+    $directory=$metadata['sourceDir']??'';
+    return hash('sha256',serialize([
+        $plugin['author']??'', $plugin['authorCommit']??'', $plugin['authorSource']??'',
+        $plugin['clonedFrom']??'', $directory, $manifest,
+        $directory!==''?@filemtime($directory.'/README.md'):false,
+        $directory!==''?@filemtime($directory.'/.git/config'):false,
+    ]));
+}
+
+function plugin_data_store(): \OmaPlugCtlPluginDataIndexedJsonlStore {
+    require_once __DIR__.'/include/OmaPlugCtlPluginDataIndexedJsonlStore.class.php';
+    ensure_directory(state_root());
+    return new \OmaPlugCtlPluginDataIndexedJsonlStore(state_root().'/plugin_data.jsonl');
+}
+
+function cached_author_link(string $id,string $platform,string $signature): string {
+    if (!is_file(state_root().'/plugin_data.jsonl')) return '';
+    try {
+        $record=plugin_data_store()->GetRecord(['plugin_id'=>$id,'platform'=>$platform]);
+        if ($record===null) return '';
+        $row=$record->ToArray();
+        $checked=strtotime($row['checked_at']);
+        if ($row['signature']!==$signature || $checked===false || time()-$checked>7*86400) return '';
+        return author_profile($row['url'],$platform);
+    } catch (\Throwable) {
+        // Opening a freshly resolved profile still works on a read-only cache.
+        return '';
+    }
+}
+
+function cache_author_link(array $plugin,string $platform,string $signature,string $profile): void {
+    try {
+        $store=plugin_data_store();
+        $key=['plugin_id'=>$plugin['id'],'platform'=>$platform];
+        $row=[...$key,'signature'=>$signature,'author'=>$plugin['author']??'','url'=>$profile,'checked_at'=>now()];
+        $version=$store->GetRecordVersionIdentifier($key);
+        if ($version===null) $store->Insert($row);
+        else $store->Update($key,$row,false,null,$version);
+    } catch (\Throwable) {
+        // Author discovery can still return a live result if storage is unavailable.
+    }
 }
 function plugin_description(array $metadata): string {
     $widget=is_array($metadata['barWidget']??null)?$metadata['barWidget']:[];$descriptions=[];
@@ -92,6 +278,16 @@ function first_commit_author(array $metadata,array &$cache): array {
 function plugin_details(array $metadata,array &$history): array {
     $path=$metadata['manifestPath']??null;$manifest=is_string($path)?json_file($path):[];if(!is_array($manifest))$manifest=[];
     $author=plugin_author($manifest);$result=['author'=>$author,'updatedDate'=>is_string($path)&&$manifest?local_update_date($path,$manifest):''];
+    $keywords=[];
+    foreach (['keywords', 'tags'] as $field) {
+        $values=$manifest[$field]??[];
+        if (!is_array($values) || !array_is_list($values)) continue;
+        foreach (array_slice($values, 0, 32) as $value) {
+            $keyword=clean_text($value, 80);
+            if ($keyword !== '') $keywords[]=$keyword;
+        }
+    }
+    if ($keywords) $result['keywords']=array_values(array_unique($keywords));
     $provenance=is_array($manifest['omarchy']??null)?$manifest['omarchy']:[];
     if(is_string($provenance['clonedAtCommit']??null)&&preg_match('/\A[0-9a-f]{40}\z/D',$provenance['clonedAtCommit']))$result['sourceCommit']=$provenance['clonedAtCommit'];
     if(is_string($provenance['customizedBy']??null)&&trim($provenance['customizedBy'])!=='')$result['customizedBy']=clean_text($provenance['customizedBy'],200);

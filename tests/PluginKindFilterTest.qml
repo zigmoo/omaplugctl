@@ -24,9 +24,9 @@ ShellRoot {
         id: filter
         width: parent.width
         host: host
-        plugins: [{id:"widget", kinds:["bar-widget"]}, {id:"bar", kinds:["bar"]},
-          {id:"machine", kinds:["overlay"]}, {id:"panel", kinds:["panel"]}, {id:"menu", kinds:["menu"]},
-          {id:"worker", kinds:["service"]}, {id:"manager", kinds:["service","bar-widget"]},
+        plugins: [{id:"widget", kinds:["bar-widget"], enabled:true}, {id:"bar", kinds:["bar"]},
+          {id:"machine", kinds:["overlay"], enabled:true, favorite:true, update:{status:"available"}}, {id:"panel", kinds:["panel"]}, {id:"menu", kinds:["menu"]},
+          {id:"worker", kinds:["service"], favorite:true, installed:false, update:{status:"rewritten"}}, {id:"manager", kinds:["service","bar-widget"], update:{status:"unchecked"}},
           {id:"unknown", kinds:["future-kind"]}]
       }
       PluginKindBadges { id: badges; width: parent.width; host: host; kinds: Kinds.keys }
@@ -53,6 +53,40 @@ ShellRoot {
         compare(filter.filteredPlugins.map(function(p){return p.id}).join(","),"machine,worker,manager")
         compare(filter.selectionLabel(),"2 selected")
       }
+      function test_enabled_appears_first_and_filters_independently() {
+        compare(filter.resolvedOptions[0].label, "Enabled")
+        mouseClick(filter, filter.width / 2, filter.height / 2)
+        tryCompare(filter, "popupOpen", true, 3000)
+        wait(50)
+        keyClick(Qt.Key_Return)
+        compare(filter.selectionLabel(), "Enabled")
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "widget,machine")
+        filter.values = ["enabled", "overlay", "panel"]
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "machine")
+        filter.values = ["enabled"]
+        compare(filter.filteredPlugins.length, 2)
+        filter.selectAllKinds()
+        compare(filter.filteredPlugins.length, 8)
+      }
+      function test_update_available_combines_with_enabled_and_kinds() {
+        compare(filter.resolvedOptions[1].label, "Update Available")
+        filter.values = ["updates"]
+        compare(filter.selectionLabel(), "Update Available")
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "machine,worker")
+        filter.values = ["enabled", "updates"]
+        compare(filter.selectionLabel(), "Enabled with updates")
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "machine")
+        filter.values = ["updates", "service"]
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "worker")
+      }
+      function test_favorites_includes_saved_uninstalled_entries() {
+        compare(filter.resolvedOptions[2].label, "Favorites")
+        filter.values = ["favorites"]
+        compare(filter.selectionLabel(), "Favorites")
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "machine,worker")
+        filter.values = ["favorites", "enabled"]
+        compare(filter.filteredPlugins.map(function(p) { return p.id }).join(","), "machine")
+      }
       function test_none_and_other_are_explicit() {
         filter.values=[]; compare(filter.filteredPlugins.length,0);compare(filter.selectionLabel(),"None selected")
         filter.values=["other"];compare(filter.filteredPlugins[0].id,"unknown")
@@ -78,10 +112,11 @@ ShellRoot {
         mouseClick(filter,filter.width/2,filter.height/2)
         tryCompare(filter,"popupOpen",true,3000)
         let row=null
-        tryVerify(function(){row=option(win.contentItem,"overlay");return row!==null},3000)
+        tryVerify(function(){row=option(win.contentItem,"enabled");return row!==null},3000)
+        wait(50)
         mouseClick(row,row.width/2,row.height/2)
-        compare(filter.values.length,1);compare(filter.values[0],"overlay")
-        compare(filter.filteredPlugins[0].id,"machine")
+        compare(filter.values.length,1);compare(filter.values[0],"enabled")
+        compare(filter.filteredPlugins.map(function(p){return p.id}).join(","),"widget,machine")
         verify(filter.popupOpen)
         grabImage(win.contentItem).save(Qt.resolvedUrl("kind-filter.png").toString().replace(/^file:\/\//,""))
         filter.close()

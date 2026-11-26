@@ -252,6 +252,7 @@ Item {
     else if (action === "sort") argv.push(pluginId)
     else if (action !== "list" && action !== "check-updates") argv.push(pendingId)
     if (action === "move") argv.push("--section", section, "--source", source, "--index", String(index))
+    if (action === "service-start" || action === "service-stop") argv.push("--unit", source)
     if (confirmed) argv.push("--confirmed")
     if (editChoice) argv.push("--edits", editChoice.action, "--review", editChoice.token)
     if (action === "use-bar" || action === "reset-bar") message = strings.t("bar.switching")
@@ -286,7 +287,8 @@ Item {
           if (result.ok) {
             root.hiddenBarWidgets = result.hiddenBarWidgets || ({})
             var changed = root.plugins.some(function(p) { return JSON.stringify(p.operation || {}) !== JSON.stringify(result.operations[p.id] || {}) })
-            if (changed) root.refresh()
+            const serviceWorking = root.plugins.some(plugin => (plugin.services || []).some(service => service.state === "working"))
+            if (changed || serviceWorking) root.refresh()
           }
         } catch (e) { console.warn("OmaPlugCtl could not read update progress: " + e) }
       }

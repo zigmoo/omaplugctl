@@ -290,7 +290,7 @@ class PhpNativeStateTests(unittest.TestCase):
         self.base = pathlib.Path(self.temporary.name)
         self.bin = self.base / 'bin'; self.bin.mkdir()
         commands = ['omarchy', 'omarchy-shell', 'omarchy-plugin-catalog', 'omarchy-plugin-list',
-                    'omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin-remove', 'xdg-open', 'wl-copy', 'curl']
+                    'omarchy-plugin-enable', 'omarchy-plugin-disable', 'omarchy-plugin-remove', 'xdg-open', 'wl-copy', 'curl', 'systemctl']
         import shlex
         for name in commands:
             target = self.bin / name
@@ -589,6 +589,50 @@ class PhpNativeStateTests(unittest.TestCase):
         self.assertFalse(plugin['enabled'])
         self.assertEqual(plugin['author'], 'Jane Doe, Riley')
         self.assertEqual(plugin['keywords'], ['desktop alerts', 'focus'])
+
+    def test_declared_user_services_are_listed_and_actions_require_a_matching_unit(self):
+        self.add_plugin('example.daemon', ['service'])
+        path = self.base / '.config/omarchy/plugins/example.daemon/manifest.json'
+        manifest = json.loads(path.read_text())
+        manifest['userServices'] = [{'name': 'Background worker', 'unit': 'worker.service'},
+                                    {'name': 'Optional bridge', 'unit': 'bridge.service'},
+                                    {'name': 'Invalid', 'unit': '--system'}]
+        path.write_text(json.dumps(manifest))
+        state = json.loads(self.native_path.read_text())
+        state['services'] = {'worker.service': 'inactive', 'unrelated.service': 'active'}
+        self.native_path.write_text(json.dumps(state))
+
+        def states(result):
+            plugin = next(p for p in result['plugins'] if p['id'] == 'example.daemon')
+            return [(s['unit'], s['state'], s['action']) for s in plugin['services']]
+
+        self.assertEqual(states(self.invoke('list')), [('worker.service', 'stopped', 'start'),
+                                                       ('bridge.service', 'setup', '')])
+        self.assertFalse(self.invoke('service-stop', 'example.daemon', '--unit', 'unrelated.service')['ok'])
+        started = self.invoke('service-start', 'example.daemon', '--unit', 'worker.service')
+        self.assertEqual(states(started)[0], ('worker.service', 'running', 'stop'))
+        stopped = self.invoke('service-stop', 'example.daemon', '--unit', 'worker.service')
+        self.assertEqual(states(stopped)[0], ('worker.service', 'stopped', 'start'))
+        self.assertEqual(json.loads(self.native_path.read_text())['serviceCommands'],
+                         [['--user', 'start', '--', 'worker.service'], ['--user', 'stop', '--', 'worker.service']])
+
+    def test_camera_output_uses_webcamtuners_own_controls_even_without_a_persistent_unit(self):
+        self.add_plugin('moo.webcamtuner', ['bar-widget', 'service'])
+        self.add_plugin('io.github.mb-jambon.omapods', ['bar-widget'])
+
+        def services(result):
+            return {p['id']: p['services'][0] for p in result['plugins'] if p.get('services')}
+
+        rows = services(self.invoke('list'))
+        self.assertEqual(rows['io.github.mb-jambon.omapods']['state'], 'setup')
+        self.assertEqual(rows['moo.webcamtuner']['action'], 'start')
+        for operation, expected in [('start', 'running'), ('stop', 'stopped')]:
+            result = self.invoke('service-' + operation, 'moo.webcamtuner', '--unit', 'webcamtuner-output.service')
+            self.assertTrue(result['ok'], result)
+            self.assertEqual(services(result)['moo.webcamtuner']['state'], expected)
+        state = json.loads(self.native_path.read_text())
+        self.assertEqual(state['cameraCommands'], ['outputStart', 'outputStop'])
+        self.assertNotIn('serviceCommands', state)
 
     def test_overlay_enable_open_disable_and_remove(self):
         self.add_plugin('example.overlay', ['overlay'], enabled=False)

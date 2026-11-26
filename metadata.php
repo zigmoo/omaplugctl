@@ -288,6 +288,8 @@ function plugin_details(array $metadata,array &$history): array {
         }
     }
     if ($keywords) $result['keywords']=array_values(array_unique($keywords));
+    $services=UserServices\definitions($metadata['id']??'', $manifest);
+    if ($services) $result['services']=$services;
     $provenance=is_array($manifest['omarchy']??null)?$manifest['omarchy']:[];
     if(is_string($provenance['clonedAtCommit']??null)&&preg_match('/\A[0-9a-f]{40}\z/D',$provenance['clonedAtCommit']))$result['sourceCommit']=$provenance['clonedAtCommit'];
     if(is_string($provenance['customizedBy']??null)&&trim($provenance['customizedBy'])!=='')$result['customizedBy']=clean_text($provenance['customizedBy'],200);

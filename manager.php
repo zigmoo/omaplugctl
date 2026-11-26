@@ -126,7 +126,7 @@ function inventory_snapshot(): array {
         $p['isSelf']=$id===SELF;$p['canDisable']=$p['canDisable']??true;$p['canRemove']=!$p['isSelf']&&empty($p['firstParty'])&&file_exists(home().'/.config/omarchy/plugins/'.$id);
         $p['update']=Updates\cached_status($p,$metadata[$id]??[],$updateCache);$p['operation']=$operations[$id]??(object)[];$result[]=$p;
     }
-    if($history!==$previous)Updates\save_cache($history,state_root().'/authors.json');return $result;
+    if($history!==$previous)Updates\save_cache($history,state_root().'/authors.json');return UserServices\attach_states($result);
 }
 function check_updates(): array {
     Updates\check_all(inventory(),metadata_map());$plugins=inventory();$available=0;$failed=0;
@@ -339,6 +339,10 @@ function execute(string $action,?string $id,?string $section=null,?string $sourc
         }
     }
     if(!$p)throw new \InvalidArgumentException('Unknown plugin.');
+    if ($action==='service-start'||$action==='service-stop') {
+        $message=UserServices\operate($p,$source,substr($action,8));
+        return ['plugins'=>inventory(),'message'=>$message];
+    }
     if(!empty($p['isSelf'])&&$action==='remove')throw new \InvalidArgumentException('OmaPlugCtl cannot uninstall itself.');
     if(!empty($p['isSelf'])&&$action==='disable'&&!$confirmed)throw new \InvalidArgumentException('Confirm before pausing OmaPlugCtl.');
     if(in_array($action,['use-bar','reset-bar'],true))return switch_bar($action,$p,$before);

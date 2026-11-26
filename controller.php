@@ -7,6 +7,7 @@ require_once __DIR__.'/updates.php';
 require_once __DIR__.'/malware.php';
 require_once __DIR__.'/marketplace.php';
 require_once __DIR__.'/sources.php';
+require_once __DIR__.'/user_services.php';
 require_once __DIR__.'/metadata.php';
 require_once __DIR__.'/manager.php';
 require_once __DIR__.'/favorites.php';
@@ -16,7 +17,7 @@ function main(array $argv): int {
     try{
         for($i=2;$i<count($argv);$i++){
             if(in_array($argv[$i],['--confirmed','--refresh'],true))$options[substr($argv[$i],2)]=true;
-            elseif(in_array($argv[$i],['--edge','--section','--source','--index','--edits','--review'],true)){if(!isset($argv[$i+1]))throw new \InvalidArgumentException('Missing option value.');$options[substr($argv[$i],2)]=$argv[++$i];}
+            elseif(in_array($argv[$i],['--edge','--section','--source','--index','--edits','--review','--unit'],true)){if(!isset($argv[$i+1]))throw new \InvalidArgumentException('Missing option value.');$options[substr($argv[$i],2)]=$argv[++$i];}
             elseif($id===null)$id=$argv[$i];else throw new \InvalidArgumentException('Unexpected argument.');
         }
         if(isset($options['index'])&&!preg_match('/\A\d+\z/D',$options['index']))throw new \InvalidArgumentException('Invalid widget index.');
@@ -50,6 +51,7 @@ function main(array $argv): int {
             'set-scan'=>response(set_scan_before_update($id)),
             'check-updates'=>response(check_updates()),
             'update'=>response(launch_update($id,$editAction,$review)),
+            'service-start','service-stop'=>response(execute($action,$id,null,$options['unit']??null)),
             'enable','disable','move','remove','about','author-github','author-x','copy-about','copy-author-github','copy-author-x','open','use-bar','reset-bar','favorite','unfavorite','reinstall'=>response(execute($action,$id,$options['section']??null,$options['source']??null,isset($options['index'])?(int)$options['index']:null,$options['confirmed'])),
             default=>throw new \InvalidArgumentException('Unknown action.'),
         };

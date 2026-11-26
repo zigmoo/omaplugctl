@@ -14,7 +14,7 @@ ShellRoot {
     property string themeFont: "JetBrainsMono Nerd Font"
     property string noDescriptionText: "No description"
     property var calls: []
-    function invoke(action, id, section, source, index, confirmed) { calls = calls.concat([{action: action, id: id, confirmed: confirmed}]) }
+    function invoke(action, id, section, source, index, confirmed) { calls = calls.concat([{action: action, id: id, source: source, confirmed: confirmed}]) }
     function showReplacementBars() { calls = calls.concat([{action: "show-replacements"}]) }
     function pluginFooter(p) { return "Fixture author" }
     function updateLabel(p) { return "Up to date" }
@@ -110,6 +110,24 @@ ShellRoot {
         row.plugin = Object.assign({}, row.plugin, {kinds: ["panel", "bar-widget"], isBarWidget: true})
         verify(!open.visible)
         verify(findChild(row, "pluginOpenIconButton").visible)
+      }
+      function test_service_actions_are_indented_and_use_the_declared_unit() {
+        row.plugin = Object.assign({}, row.plugin, {services: [{unit: "example.service", name: "Example worker", state: "stopped", action: "start"}]})
+        let service = findChild(row, "pluginServiceRow")
+        verify(service.visible && service.x > 0)
+        compare(findChild(service, "pluginServiceStatus").text, "Example worker · Stopped")
+        let button = findChild(service, "pluginServiceAction")
+        compare(button.text, "Start")
+        mouseClick(button)
+        compare(host.calls[0].action, "service-start")
+        compare(host.calls[0].id, "example.machine")
+        compare(host.calls[0].source, "example.service")
+        row.plugin = Object.assign({}, row.plugin, {services: [{unit: "example.service", name: "Example worker", state: "running", action: "stop"}]})
+        service = findChild(row, "pluginServiceRow")
+        button = findChild(service, "pluginServiceAction")
+        compare(button.text, "Stop")
+        mouseClick(button)
+        compare(host.calls[1].action, "service-stop")
       }
       function test_full_bar_pause_and_play_switch_bars() {
         row.plugin = Object.assign({}, row.plugin, {id: "example.replacement", name: "Replacement",

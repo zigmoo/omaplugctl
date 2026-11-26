@@ -110,6 +110,12 @@ The first visit downloads the catalog. Later visits reuse the saved copy and rea
 
 Marketplace verification covers the listed commit. The native installer fetches current upstream code, which can have changed since that verification. The Install tab keeps snapshot and update verification distinct; it does not pin installations to a verified commit or apply the update-only ClamAV setting to new installs. The [marketplace verification guide](https://github.com/omacom/omarchy-plugin-marketplace/blob/main/VERIFICATION.md) describes the evidence and its limits.
 
+## Plugin services
+
+Plugins with a supported background service show its status and **Start** or **Stop** below the main row. AirPods Experience controls its LibrePods user service. WebcamTuner starts and stops its camera output through its own controls. If a service needs installation, **Setup instructions** opens the plugin source.
+
+Plugins can declare installed systemd user services in their manifest with `"userServices": [{"unit": "example.service", "name": "Example service"}]`. Service controls act on the current user's units and leave boot-time settings alone.
+
 ## PHP and Python measurements
 
 Measured on framemoowork with Python 3.14.8 (`-B`) and PHP 8.5.11 (`-n`), using warm, randomized interleaved samples and equivalent decoded outputs:

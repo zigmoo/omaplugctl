@@ -276,6 +276,50 @@ Item {
         }
       }
     }
+    Repeater {
+      model: root.notInstalled ? [] : (root.plugin.services || [])
+      delegate: Item {
+        id: serviceRow
+        objectName: "pluginServiceRow"
+        required property var modelData
+        x: mark.width + Style.space(8)
+        width: body.width - x
+        height: Math.max(serviceLabel.implicitHeight, serviceAction.visible ? serviceAction.implicitHeight : 0)
+        Text {
+          id: serviceLabel
+          objectName: "pluginServiceStatus"
+          anchors.left: parent.left
+          anchors.right: serviceAction.visible ? serviceAction.left : parent.right
+          anchors.rightMargin: serviceAction.visible ? Style.space(8) : 0
+          anchors.verticalCenter: parent.verticalCenter
+          text: serviceRow.modelData.name + " · " + root.host.text("service." + serviceRow.modelData.state)
+          textFormat: Text.PlainText
+          elide: Text.ElideRight
+          font.family: root.host.themeFont
+          font.pixelSize: Style.font.caption
+          color: Qt.alpha(root.ink, 0.8)
+        }
+        Ui.Button {
+          id: serviceAction
+          objectName: "pluginServiceAction"
+          anchors.right: parent.right
+          anchors.verticalCenter: parent.verticalCenter
+          visible: !!serviceRow.modelData.action || serviceRow.modelData.state === "setup"
+          text: root.host.text("service." + (serviceRow.modelData.action || "instructions"))
+          fontFamily: root.host.themeFont
+          fontSize: Style.font.caption
+          horizontalPadding: Style.space(5)
+          verticalPadding: Style.space(1)
+          foreground: root.ink
+          focusable: true
+          enabled: root.available
+          onClicked: {
+            if (serviceRow.modelData.action) root.host.invoke("service-" + serviceRow.modelData.action, root.plugin.id, "", serviceRow.modelData.unit)
+            else root.host.invoke("about", root.plugin.id)
+          }
+        }
+      }
+    }
     Column {
       width: parent.width
       visible: root.expanded

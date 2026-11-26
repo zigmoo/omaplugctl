@@ -100,6 +100,31 @@ elif name == 'omarchy' and args[:2] == ['plugin', 'enable']:
                 plugin['enabled'] = True
 elif name == 'omarchy-shell' and args == ['shell', 'rescanPlugins']:
     print('ok')
+elif name == 'systemctl' and args[0] == '--user':
+    action = args[1]
+    units = args[args.index('--') + 1:]
+    if action == 'show':
+        for unit in units:
+            active = state.get('services', {}).get(unit)
+            print(f'Id={unit}\nNames={unit}\nLoadState={"loaded" if active else "not-found"}')
+            print(f'ActiveState={active or "inactive"}\nCanStart={"yes" if active else "no"}\nCanStop=yes\n')
+    elif action in ('start', 'stop') and units[0] in state.get('services', {}):
+        state['services'][units[0]] = 'active' if action == 'start' else 'inactive'
+        state.setdefault('serviceCommands', []).append(args)
+    else:
+        raise SystemExit('Unexpected systemctl call')
+elif name == 'omarchy-shell' and args[0] == 'moo.webcamtuner':
+    if args[1] == 'status':
+        emit({'outputReady': True, 'outputBusy': False})
+    elif args[1] in ('outputStart', 'outputStop'):
+        state.setdefault('cameraCommands', []).append(args[1])
+        services = state.setdefault('services', {})
+        if args[1] == 'outputStart':
+            services['webcamtuner-output.service'] = 'active'
+        else:
+            services.pop('webcamtuner-output.service', None)
+    else:
+        raise SystemExit('Unexpected camera service call')
 elif name == 'omarchy-shell' and args == ['shell', 'debugBarGeometry']:
     emit(state.get('barGeometry', []))
 elif name == 'omarchy-shell' and args[:2] == ['shell', 'summon']:
